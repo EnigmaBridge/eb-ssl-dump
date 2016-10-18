@@ -51,6 +51,7 @@ parser = argparse.ArgumentParser(description='SSL dump')
 parser.add_argument('-d',   dest='domains', nargs=argparse.ZERO_OR_MORE,
                             help='domain', default=[])
 parser.add_argument('--bw', dest='bw', nargs=argparse.ZERO_OR_MORE, default=[])
+parser.add_argument('--spy', dest='spy', nargs=argparse.ZERO_OR_MORE, default=[])
 parser.add_argument('--debug', dest='debug', action='store_const', const=True,
                             help='enables debug mode')
 parser.add_argument('files', nargs=argparse.ZERO_OR_MORE, default=[],
@@ -86,6 +87,20 @@ if args.bw is not None:
                 if len(parts) < 2:
                     continue
                 domains.add(parts[0])
+
+# spyonline
+if args.spy is not None:
+    for spy in args.spy:
+        with open(spy, mode='r') as fh:
+            data = fh.read()
+            js = json.loads(data)
+            if 'result' in js and 'dns_domain' in js['result']:
+                for ns in js['result']['dns_domain']:
+                    if 'items' in js['result']['dns_domain'][ns]:
+                        for cur_dom in js['result']['dns_domain'][ns]['items']:
+                            print cur_dom
+                            domains.add(cur_dom)
+
 
 if len(domains) == 0:
     print 'No domains given'
