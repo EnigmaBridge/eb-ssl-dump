@@ -14,6 +14,8 @@ import os
 import signal
 import datetime
 import json
+from Queue import Queue
+from threading import Thread
 from collections import OrderedDict
 from cryptography.x509.oid import NameOID, ObjectIdentifier, ExtensionOID
 from cryptography.hazmat.backends import default_backend
@@ -220,100 +222,136 @@ print(domains)
 
 requests.packages.urllib3.disable_warnings()
 cns = []
+pubkey_set = set()
+cert_set = set()
 utc_now = datetime.datetime.utcnow()
 epoch = datetime.datetime.utcfromtimestamp(0)
 
+# Multithreading init
+num_threads = max(16, len(domains))
+queue = Queue()
 for d in domains:
+    queue.put(d)
 
+
+def process_domain(d):
     try:
-        with timeout(seconds=3):
-            resp = requests.get('https://'+d, verify=False)
-            cert = resp.peercert
-            certex = resp.peercertex
-            cd = OrderedDict()
+        resp = requests.get('https://'+d, verify=False, timeout=5)
+        cert = resp.peercert
+        certex = resp.peercertex
+        cd = OrderedDict()
 
-            cd['cn'] = get_cn(certex)
-            cd['alts'] = get_alts(certex)
+        cd['cn'] = get_cn(certex)
+        cd['alts'] = get_alts(certex)
 
-            x509 = load_x509(str(cert))
-            subject = x509.subject
-            issuer = x509.issuer
+        x509 = load_x509(str(cert))
+        subject = x509.subject
+        issuer = x509.issuer
 
-            # generic
-            cd['version'] = str(x509.version)
-            cd['serial'] = x509.serial
-            cd['not_before'] = unix_time_millis(x509.not_valid_before)
-            cd['not_before_fmt'] = x509.not_valid_before.isoformat()
-            cd['not_after'] = unix_time_millis(x509.not_valid_after)
-            cd['not_after_fmt'] = x509.not_valid_after.isoformat()
+        # generic
+        cd['version'] = str(x509.version)
+        cd['serial'] = x509.serial
+        cd['not_before'] = unix_time_millis(x509.not_valid_before)
+        cd['not_before_fmt'] = x509.not_valid_before.isoformat()
+        cd['not_after'] = unix_time_millis(x509.not_valid_after)
+        cd['not_after_fmt'] = x509.not_valid_after.isoformat()
 
-            # Subject
-            cd['loc'] = get_dn_part(subject, NameOID.LOCALITY_NAME)
-            cd['org'] = get_dn_part(subject, NameOID.ORGANIZATION_NAME)
-            cd['orgunit'] = get_dn_part(subject, NameOID.ORGANIZATIONAL_UNIT_NAME)
+        # Subject
+        cd['loc'] = get_dn_part(subject, NameOID.LOCALITY_NAME)
+        cd['org'] = get_dn_part(subject, NameOID.ORGANIZATION_NAME)
+        cd['orgunit'] = get_dn_part(subject, NameOID.ORGANIZATIONAL_UNIT_NAME)
 
-            # Issuer
-            cd['issuer_cn'] = get_dn_part(issuer, NameOID.COMMON_NAME)
-            cd['issuer_loc'] = get_dn_part(issuer, NameOID.LOCALITY_NAME)
-            cd['issuer_org'] = get_dn_part(issuer, NameOID.ORGANIZATION_NAME)
-            cd['issuer_orgunit'] = get_dn_part(issuer, NameOID.ORGANIZATIONAL_UNIT_NAME)
+        # Issuer
+        cd['issuer_cn'] = get_dn_part(issuer, NameOID.COMMON_NAME)
+        cd['issuer_loc'] = get_dn_part(issuer, NameOID.LOCALITY_NAME)
+        cd['issuer_org'] = get_dn_part(issuer, NameOID.ORGANIZATION_NAME)
+        cd['issuer_orgunit'] = get_dn_part(issuer, NameOID.ORGANIZATIONAL_UNIT_NAME)
 
-            # Signature
-            cd['sig_alg'] = x509.signature_hash_algorithm.name
+        # Signature
+        cd['sig_alg'] = x509.signature_hash_algorithm.name
 
-            # pubkey
-            pk = OrderedDict()
-            n = x509.public_key().public_numbers().n
-            pk['pem'] = x509.public_key().public_bytes(Encoding.PEM, PublicFormat.SubjectPublicKeyInfo)
-            pk['n'] = n
-            pk['n_hex'] = base64.b16encode(long_to_bytes(n))
-            pk['e'] = x509.public_key().public_numbers().e
-            pk['e_hex'] = base64.b16encode(long_to_bytes(x509.public_key().public_numbers().e))
+        # pubkey
+        pk = OrderedDict()
+        n = x509.public_key().public_numbers().n
+        pk['pem'] = x509.public_key().public_bytes(Encoding.PEM, PublicFormat.SubjectPublicKeyInfo)
+        pk['n'] = n
+        pk['n_hex'] = base64.b16encode(long_to_bytes(n))
+        pk['e'] = x509.public_key().public_numbers().e
+        pk['e_hex'] = base64.b16encode(long_to_bytes(x509.public_key().public_numbers().e))
 
-            # pubkey analysis
-            # analysis: top 2 bytes, lower 1 byte, modulo 3..40, length
-            buff = long_to_bytes(n)
-            pk['len'] = len(buff)
-            pk['hi2'] = base64.b16encode(buff[-2:])
-            pk['lo2'] = base64.b16encode(buff[0:2])
+        # pubkey analysis
+        # analysis: top 2 bytes, lower 1 byte, modulo 3..40, length
+        buff = long_to_bytes(n)
+        pk['len'] = len(buff)
+        pk['hi2'] = base64.b16encode(buff[-2:])
+        pk['lo2'] = base64.b16encode(buff[0:2])
 
-            mmod = []
-            for ix in range(3,41,2):
-                mres = n % ix
-                mmod.append({'i':ix, 'res':mres})
-            pk['mmod'] = mmod
+        mmod = []
+        for ix in range(3,41,2):
+            mres = n % ix
+            mmod.append({'i':ix, 'res':mres})
+        pk['mmod'] = mmod
 
-            cd['pubkey'] = pk
+        cd['pubkey'] = pk
 
-            # cert in the pem
-            cd['cert'] = x509.public_bytes(Encoding.PEM)
+        # cert in the pem
+        cd['cert'] = x509.public_bytes(Encoding.PEM)
 
-            # not json serializable
-            #cd['pubkey'] = x509.public_key()
+        # not json serializable
+        #cd['pubkey'] = x509.public_key()
 
-            # cert = ssl.get_server_certificate((d, 443))
-            # if cert is None:
-            #     continue
+        # cert = ssl.get_server_certificate((d, 443))
+        # if cert is None:
+        #     continue
 
-            print cert
-            cns.append(cd)
+        return cd
 
     except KeyboardInterrupt:
-        break
+        return None
     except TimeoutError:
         if args.debug:
             traceback.print_exc()
-        continue
+        return None
     except AttributeError:
         if args.debug:
             traceback.print_exc()
-        continue
+        return None
     except:
         sys.stderr.write('Domain [%s]\n' % d)
         traceback.print_exc()
-        continue
+        return None
+
+
+def domain_processed(res):
+    if res is None:
+        return
+
+    cns.append(res)
+    cert_set.add(res['cert'])
+    pubkey_set.add(res['pubkey']['pem'])
+    print(res['cert'])
+
+
+def worker_main(queue):
+    while not queue.empty():
+        d = queue.get()
+        res = process_domain(d)
+        domain_processed(res)
+
+
+workers = []
+for i in range(num_threads):
+    worker = Thread(target=worker_main, args=(queue,))
+    worker.setDaemon(True)
+    worker.start()
+    workers.append(worker)
+
+for worker in workers:
+    worker.join()
 
 print json.dumps(cns, indent=4)
 
-
+print('Domains count: %d' % len(domains))
+print('Unique certificates: %d' % len(cert_set))
+print('Unique pubkeys: %d' % len(pubkey_set))
 
