@@ -14,6 +14,7 @@ import os
 import signal
 import datetime
 import json
+from collections import OrderedDict
 from cryptography.x509.oid import NameOID, ObjectIdentifier, ExtensionOID
 from cryptography.hazmat.backends import default_backend
 from Crypto.PublicKey import RSA
@@ -21,6 +22,14 @@ from cryptography.hazmat.primitives.serialization import Encoding, PublicFormat
 from cryptography.hazmat.primitives import serialization
 from cryptography.x509.base import load_pem_x509_certificate
 from Crypto.PublicKey.RSA import RSAImplementation
+
+import base64
+import types
+import struct
+from Crypto import Random
+from Crypto.Cipher import AES
+from Crypto.Util.py3compat import *
+from Crypto.Util.number import long_to_bytes, bytes_to_long, size, ceil_div
 
 #
 # Misc helpers
@@ -208,7 +217,7 @@ for d in domains:
             resp = requests.get('https://'+d, verify=False)
             cert = resp.peercert
             certex = resp.peercertex
-            cd = {}
+            cd = OrderedDict()
 
             print certex
             cd['cn'] = get_cn(certex)
@@ -217,6 +226,14 @@ for d in domains:
             x509 = load_x509(str(cert))
             subject = x509.subject
             issuer = x509.issuer
+
+            # generic
+            cd['version'] = str(x509.version)
+            cd['serial'] = x509.serial
+            cd['not_before'] = unix_time_millis(x509.not_valid_before)
+            cd['not_before_fmt'] = x509.not_valid_before.isoformat()
+            cd['not_after'] = unix_time_millis(x509.not_valid_after)
+            cd['not_after_fmt'] = x509.not_valid_after.isoformat()
 
             # Subject
             cd['loc'] = get_dn_part(subject, NameOID.LOCALITY_NAME)
@@ -229,15 +246,34 @@ for d in domains:
             cd['issuer_org'] = get_dn_part(issuer, NameOID.ORGANIZATION_NAME)
             cd['issuer_orgunit'] = get_dn_part(issuer, NameOID.ORGANIZATIONAL_UNIT_NAME)
 
-            cd['not_before'] = unix_time_millis(x509.not_valid_before)
-            cd['not_before_fmt'] = x509.not_valid_before.isoformat()
-            cd['not_after'] = unix_time_millis(x509.not_valid_after)
-            cd['not_after_fmt'] = x509.not_valid_after.isoformat()
+            # Signature
+            cd['sig_alg'] = x509.signature_hash_algorithm.name
 
-            cd['pubkey_enc'] = x509.public_key().public_bytes(Encoding.PEM, PublicFormat.SubjectPublicKeyInfo)
-            cd['pubkey_n'] = x509.public_key().public_numbers().n
-            cd['pubkey_e'] = x509.public_key().public_numbers().e
+            # pubkey
+            pk = OrderedDict()
+            n = x509.public_key().public_numbers().n
+            pk['pem'] = x509.public_key().public_bytes(Encoding.PEM, PublicFormat.SubjectPublicKeyInfo)
+            pk['n'] = n
+            pk['n_hex'] = base64.b16encode(long_to_bytes(n))
+            pk['e'] = x509.public_key().public_numbers().e
+            pk['e_hex'] = base64.b16encode(long_to_bytes(x509.public_key().public_numbers().e))
 
+            # pubkey analysis
+            # analysis: top 2 bytes, lower 1 byte, modulo 3..40, length
+            buff = long_to_bytes(n)
+            pk['len'] = len(buff)
+            pk['hi2'] = base64.b16encode(buff[-2:])
+            pk['lo2'] = base64.b16encode(buff[0:2])
+
+            mmod = []
+            for ix in range(3,41,2):
+                mres = n % ix
+                mmod.append({'i':ix, 'res':mres})
+            pk['mmod'] = mmod
+
+            cd['pubkey'] = pk
+
+            # cert in the pem
             cd['cert'] = x509.public_bytes(Encoding.PEM)
 
             # not json serializable
