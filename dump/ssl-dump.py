@@ -254,7 +254,7 @@ utc_now = datetime.datetime.utcnow()
 epoch = datetime.datetime.utcfromtimestamp(0)
 
 # Multithreading init
-num_threads = min(16, len(domains))
+num_threads = min(16 if args.threads is None else int(args.threads), len(domains))
 queue = Queue()
 for d in domains:
     queue.put(d)
