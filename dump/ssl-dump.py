@@ -312,6 +312,14 @@ def process_domain(d):
         if args.debug:
             traceback.print_exc()
         return None
+    except requests.exceptions.ConnectTimeout:
+        if args.debug:
+            traceback.print_exc()
+        return None
+    except requests.exceptions.TooManyRedirects:
+        if args.debug:
+            traceback.print_exc()
+        return None
     except AttributeError:
         if args.debug:
             traceback.print_exc()
