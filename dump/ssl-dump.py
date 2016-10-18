@@ -232,7 +232,6 @@ for d in domains:
             certex = resp.peercertex
             cd = OrderedDict()
 
-            print certex
             cd['cn'] = get_cn(certex)
             cd['alts'] = get_alts(certex)
 
