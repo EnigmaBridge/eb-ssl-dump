@@ -48,14 +48,16 @@ def load_x509(data, backend=None):
 # Arguments
 #
 parser = argparse.ArgumentParser(description='SSL dump')
+parser.add_argument('-t',   dest='threads', type=int, default=None)
 parser.add_argument('-d',   dest='domains', nargs=argparse.ZERO_OR_MORE,
-                            help='domain', default=[])
-parser.add_argument('--bw', dest='bw', nargs=argparse.ZERO_OR_MORE, default=[])
-parser.add_argument('--spy', dest='spy', nargs=argparse.ZERO_OR_MORE, default=[])
+                            help='domains to process', default=[])
+parser.add_argument('--bw', dest='bw', nargs=argparse.ZERO_OR_MORE, default=[], help='BuiltWith CSV dump, domain first, comma separated')
+parser.add_argument('--spy', dest='spy', nargs=argparse.ZERO_OR_MORE, default=[], help='webspy JSON format')
+parser.add_argument('--web', dest='web', nargs=argparse.ZERO_OR_MORE, default=[], help='Produced by web_loader')
 parser.add_argument('--debug', dest='debug', action='store_const', const=True,
                             help='enables debug mode')
 parser.add_argument('files', nargs=argparse.ZERO_OR_MORE, default=[],
-                            help='file with domains to process')
+                            help='file with domains to process, whitespace separated')
 
 args = parser.parse_args()
 
@@ -101,6 +103,15 @@ if args.spy is not None:
                             print cur_dom
                             domains.add(cur_dom)
 
+# webloader
+if args.web is not None:
+    for web in args.web:
+        with open(web, mode='r') as fh:
+            data = fh.read()
+            js = json.loads(data)
+            for ns in js:
+                for d in js[ns]['domains']:
+                    domains.add(d)
 
 if len(domains) == 0:
     print 'No domains given'
@@ -243,7 +254,7 @@ utc_now = datetime.datetime.utcnow()
 epoch = datetime.datetime.utcfromtimestamp(0)
 
 # Multithreading init
-num_threads = max(16, len(domains))
+num_threads = min(16, len(domains))
 queue = Queue()
 for d in domains:
     queue.put(d)
