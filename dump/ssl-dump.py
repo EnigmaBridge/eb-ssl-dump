@@ -12,8 +12,11 @@ from functools import wraps
 import errno
 import os
 import signal
+import datetime
+from cryptography.x509.oid import NameOID, ObjectIdentifier, ExtensionOID
 from cryptography.hazmat.backends import default_backend
 from Crypto.PublicKey import RSA
+from cryptography.hazmat.primitives.serialization import Encoding, PublicFormat
 from cryptography.hazmat.primitives import serialization
 from cryptography.x509.base import load_pem_x509_certificate
 from Crypto.PublicKey.RSA import RSAImplementation
@@ -35,6 +38,8 @@ def load_x509(data, backend=None):
 parser = argparse.ArgumentParser(description='SSL dump')
 parser.add_argument('-d',   dest='domains', nargs=argparse.ZERO_OR_MORE,
                             help='domain', default=[])
+parser.add_argument('--debug', dest='debug', action='store_const', const=True,
+                            help='enables debug mode')
 parser.add_argument('files', nargs=argparse.ZERO_OR_MORE, default=[],
                             help='file with domains to process')
 
@@ -99,6 +104,7 @@ HTTPAdapter.build_response = new_HTTPAdapter_build_response
 # Processing
 #
 def get_cn(obj):
+    """Accepts requests cert"""
     if obj is None:
         return None
     if 'subject' not in obj:
@@ -109,7 +115,42 @@ def get_cn(obj):
             if x[0] == 'commonName':
                 return x[1]
     except:
-        pass
+        if args.debug:
+            traceback.print_exc()
+    return None
+
+
+def get_alts(obj):
+    """Accepts requests cert"""
+    if obj is None:
+        return []
+    if 'subjectAltName' not in obj:
+        return []
+    try:
+        buf = []
+        for x in obj['subjectAltName']:
+            if x[0] == 'DNS':
+                buf.append(x[1])
+
+        return buf
+    except:
+        if args.debug:
+            traceback.print_exc()
+    return []
+
+
+def get_dn_part(subject, oid=None):
+    if subject is None:
+        return None
+    if oid is None:
+        raise ValueError('Disobey wont be tolerated')
+    try:
+        for sub in subject:
+            if oid is not None and sub.oid == oid:
+                return sub.value
+    except:
+        if args.debug:
+            traceback.print_exc()
     return None
 
 
@@ -133,40 +174,83 @@ class timeout:
 #
 # Main
 #
-print('Domains to process: ')
-print(domains)
-
-requests.packages.urllib3.disable_warnings()
-cns = []
-for d in domains:
+domains_tmp = domains
+domains = set([])
+for d in domains_tmp:
     d = d.strip()
     d = d.replace('http://', '')
     d = d.replace('https://', '')
     d = d.replace('/', '')
     if len(d) == 0:
         continue
+    domains.add(d)
+
+    # explode with www. prefix
+    if not d.startswith('www.'):
+        domains.add('www.' + d)
+
+print('Domains to process: ')
+print(domains)
+
+requests.packages.urllib3.disable_warnings()
+cns = []
+cert_db = []
+utc_now = datetime.datetime.utcnow()
+
+for d in domains:
+
     try:
-        with timeout(seconds=3):
+        with timeout(seconds=2):
             resp = requests.get('https://'+d, verify=False)
             cert = resp.peercert
             certex = resp.peercertex
+            cd = {}
+
+            print certex
+            cd['cn'] = get_cn(certex)
+            cd['alts'] = get_alts(certex)
+
+            x509 = load_x509(str(cert))
+            subject = x509.subject
+            issuer = x509.issuer
+            print issuer
+            print subject
+
+            # Subject
+            cd['loc'] = get_dn_part(subject, NameOID.LOCALITY_NAME)
+            cd['org'] = get_dn_part(subject, NameOID.ORGANIZATION_NAME)
+            cd['orgunit'] = get_dn_part(subject, NameOID.ORGANIZATIONAL_UNIT_NAME)
+
+            # Issuer
+            cd['issuer_cn'] = get_dn_part(issuer, NameOID.COMMON_NAME)
+            cd['issuer_loc'] = get_dn_part(issuer, NameOID.LOCALITY_NAME)
+            cd['issuer_org'] = get_dn_part(issuer, NameOID.ORGANIZATION_NAME)
+            cd['issuer_orgunit'] = get_dn_part(issuer, NameOID.ORGANIZATIONAL_UNIT_NAME)
+
+            cd['not_before'] = x509.not_valid_before
+            cd['pubkey'] = x509.public_key()
+            cd['pubkey_enc'] = x509.public_key().public_bytes(Encoding.PEM, PublicFormat.SubjectPublicKeyInfo)
+            cd['pubkey_n'] = x509.public_key().public_numbers().n
+            cd['pubkey_e'] = x509.public_key().public_numbers().e
+
+            cd['cert'] = x509.public_bytes(Encoding.PEM)
 
             # cert = ssl.get_server_certificate((d, 443))
             # if cert is None:
             #     continue
 
-            x509 = load_x509(str(cert))
-            # print x509.public_key()
-            # print x509.public_bytes()
-            # print x509.subject
             print cert
-            cns.append(get_cn(certex))
+            cns.append(cd)
 
     except KeyboardInterrupt:
         break
     except TimeoutError:
+        if args.debug:
+            traceback.print_exc()
         continue
     except AttributeError:
+        if args.debug:
+            traceback.print_exc()
         continue
     except:
         sys.stderr.write('Domain [%s]\n' % d)
