@@ -14,6 +14,7 @@ import os
 import signal
 import datetime
 import json
+import keys_basic
 from Queue import Queue
 from threading import Thread, Lock
 from collections import OrderedDict
@@ -305,18 +306,20 @@ def process_domain(d):
         pk['n_hex'] = base64.b16encode(long_to_bytes(n))
         pk['e'] = x509.public_key().public_numbers().e
         pk['e_hex'] = base64.b16encode(long_to_bytes(x509.public_key().public_numbers().e))
+        pk['mask'] = keys_basic.compute_key_mask(n)
 
         # pubkey analysis
         # analysis: top 2 bytes, lower 1 byte, modulo 3..40, length
         buff = long_to_bytes(n)
         pk['len'] = len(buff)
+        pk['bitlen'] = keys_basic.long_bit_size(n)
         pk['hi2'] = base64.b16encode(buff[-2:])
         pk['lo2'] = base64.b16encode(buff[0:2])
 
         mmod = []
         for ix in range(3,41,2):
             mres = n % ix
-            mmod.append({'i':ix, 'res':mres})
+            mmod.append({'i': ix, 'res': mres})
         pk['mmod'] = mmod
 
         cd['pubkey'] = pk
