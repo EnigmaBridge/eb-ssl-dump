@@ -401,13 +401,11 @@ for i in range(num_threads):
 for worker in workers:
     worker.join()
 
-print json.dumps(cns, indent=4)
-
 print('Domains count: %d' % len(domains))
 print('Unique certificates: %d' % len(cert_set))
 print('Unique pubkeys: %d' % len(pubkey_set))
-print('Certificate dump follows')
-print('')
+
+print json.dumps(cns, indent=4)
 
 for cert in cns:
     print cert
