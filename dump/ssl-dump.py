@@ -48,6 +48,7 @@ def load_x509(data, backend=None):
 parser = argparse.ArgumentParser(description='SSL dump')
 parser.add_argument('-d',   dest='domains', nargs=argparse.ZERO_OR_MORE,
                             help='domain', default=[])
+parser.add_argument('--bw', dest='bw', nargs=argparse.ZERO_OR_MORE, default=[])
 parser.add_argument('--debug', dest='debug', action='store_const', const=True,
                             help='enables debug mode')
 parser.add_argument('files', nargs=argparse.ZERO_OR_MORE, default=[],
@@ -58,7 +59,7 @@ args = parser.parse_args()
 #
 # Domains array preparation
 #
-domains = []
+domains = set([])
 for fl in args.files:
     with open(fl, mode='r') as fh:
         for line in fh.readlines():
@@ -66,11 +67,23 @@ for fl in args.files:
             for part in parts:
                 if part is None or len(part) == 0:
                     continue
-                domains.append(part)
+                domains.add(part)
 
 if args.domains is not None and len(args.domains) > 0:
     for d in args.domains:
-        domains.append(d)
+        domains.add(d)
+
+# CSV files, first is domain, separator is ','
+if args.bw is not None:
+    for bwf in args.bw:
+        with open(bwf, mode='r') as fh:
+            for line in fh.readlines():
+                if line is None or len(line)==0:
+                    continue
+                parts = [x.strip() for x in line.split(',')]
+                if len(parts) < 2:
+                    continue
+                domains.add(parts[0])
 
 if len(domains) == 0:
     print 'No domains given'
