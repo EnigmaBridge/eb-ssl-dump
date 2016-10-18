@@ -15,7 +15,7 @@ __author__ = 'dusanklinec'
 class ToolsLoader(object):
     BASE_URL = 'http://www.gwebtools.com/ns-spy/'
 
-    def __init__(self, ns=None, attempts=5):
+    def __init__(self, ns=None, attempts=10):
         self.attempts = attempts
         self.ns = ns
         self.total = None
