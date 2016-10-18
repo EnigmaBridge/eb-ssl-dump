@@ -15,7 +15,7 @@ import signal
 import datetime
 import json
 from Queue import Queue
-from threading import Thread
+from threading import Thread, Lock
 from collections import OrderedDict
 from cryptography.x509.oid import NameOID, ObjectIdentifier, ExtensionOID
 from cryptography.hazmat.backends import default_backend
@@ -247,7 +247,8 @@ print('Domains to process: ')
 print(domains)
 
 requests.packages.urllib3.disable_warnings()
-cns = []
+cns = OrderedDict()
+cns_lock = Lock()
 pubkey_set = set()
 cert_set = set()
 utc_now = datetime.datetime.utcnow()
@@ -356,21 +357,38 @@ def process_domain(d):
         return None
 
 
-def domain_processed(res):
+def domain_processed(res=None, domain=None):
     if res is None:
         return
 
-    cns.append(res)
-    cert_set.add(res['cert'])
-    pubkey_set.add(res['pubkey']['pem'])
-    print(res['cert'])
+    cns_lock.acquire()
+    try:
+        cert = res['cert']
+        if cert in cns:
+            res = cns[cert]
+
+        if 'on_domains' not in res:
+            res['on_domains'] = []
+
+        tmp_domains = set(res['on_domains'])
+        tmp_domains.add(domain)
+        tmp_domains = list(tmp_domains)
+        tmp_domains.sort()
+        res['on_domains'] = tmp_domains
+
+        cns[cert] = res
+
+        cert_set.add(res['cert'])
+        pubkey_set.add(res['pubkey']['pem'])
+    finally:
+        cns_lock.release()
 
 
 def worker_main(queue):
     while not queue.empty():
         d = queue.get()
         res = process_domain(d)
-        domain_processed(res)
+        domain_processed(res=res, domain=d)
 
 
 workers = []
@@ -388,4 +406,9 @@ print json.dumps(cns, indent=4)
 print('Domains count: %d' % len(domains))
 print('Unique certificates: %d' % len(cert_set))
 print('Unique pubkeys: %d' % len(pubkey_set))
+print('Certificate dump follows')
+print('')
+
+for cert in cns:
+    print cert
 
