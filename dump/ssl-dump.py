@@ -13,6 +13,7 @@ import errno
 import os
 import signal
 import datetime
+import json
 from cryptography.x509.oid import NameOID, ObjectIdentifier, ExtensionOID
 from cryptography.hazmat.backends import default_backend
 from Crypto.PublicKey import RSA
@@ -171,6 +172,9 @@ class timeout:
         signal.alarm(0)
 
 
+def unix_time_millis(dt):
+    return (dt - epoch).total_seconds()
+
 #
 # Main
 #
@@ -186,21 +190,21 @@ for d in domains_tmp:
     domains.add(d)
 
     # explode with www. prefix
-    if not d.startswith('www.'):
-        domains.add('www.' + d)
+    # if not d.startswith('www.'):
+    #     domains.add('www.' + d)
 
 print('Domains to process: ')
 print(domains)
 
 requests.packages.urllib3.disable_warnings()
 cns = []
-cert_db = []
 utc_now = datetime.datetime.utcnow()
+epoch = datetime.datetime.utcfromtimestamp(0)
 
 for d in domains:
 
     try:
-        with timeout(seconds=2):
+        with timeout(seconds=3):
             resp = requests.get('https://'+d, verify=False)
             cert = resp.peercert
             certex = resp.peercertex
@@ -213,8 +217,6 @@ for d in domains:
             x509 = load_x509(str(cert))
             subject = x509.subject
             issuer = x509.issuer
-            print issuer
-            print subject
 
             # Subject
             cd['loc'] = get_dn_part(subject, NameOID.LOCALITY_NAME)
@@ -227,13 +229,19 @@ for d in domains:
             cd['issuer_org'] = get_dn_part(issuer, NameOID.ORGANIZATION_NAME)
             cd['issuer_orgunit'] = get_dn_part(issuer, NameOID.ORGANIZATIONAL_UNIT_NAME)
 
-            cd['not_before'] = x509.not_valid_before
-            cd['pubkey'] = x509.public_key()
+            cd['not_before'] = unix_time_millis(x509.not_valid_before)
+            cd['not_before_fmt'] = x509.not_valid_before.isoformat()
+            cd['not_after'] = unix_time_millis(x509.not_valid_after)
+            cd['not_after_fmt'] = x509.not_valid_after.isoformat()
+
             cd['pubkey_enc'] = x509.public_key().public_bytes(Encoding.PEM, PublicFormat.SubjectPublicKeyInfo)
             cd['pubkey_n'] = x509.public_key().public_numbers().n
             cd['pubkey_e'] = x509.public_key().public_numbers().e
 
             cd['cert'] = x509.public_bytes(Encoding.PEM)
+
+            # not json serializable
+            #cd['pubkey'] = x509.public_key()
 
             # cert = ssl.get_server_certificate((d, 443))
             # if cert is None:
@@ -257,7 +265,7 @@ for d in domains:
         traceback.print_exc()
         continue
 
-print cns
+print json.dumps(cns, indent=4)
 
 
 
