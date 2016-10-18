@@ -404,8 +404,10 @@ for worker in workers:
 print('Domains count: %d' % len(domains))
 print('Unique certificates: %d' % len(cert_set))
 print('Unique pubkeys: %d' % len(pubkey_set))
-
+print('-----BEGIN JSON-----')
 print json.dumps(list(cns.values()), indent=4)
+print('-----END JSON-----')
+
 
 for cert in cns:
     print cert
