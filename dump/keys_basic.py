@@ -63,6 +63,35 @@ def compute_key_mask(n):
     return mask
 
 
+def generate_pubkey_mask_src(pmsb, plsb, prem, plen):
+    mask = ''
+
+    mask += left_zero_pad(bin(pmsb)[2:], 6)
+    mask += '|'
+
+    mask += bin(plsb)[2:]
+    mask += '|'
+
+    mask += str(prem)
+    mask += '|'
+
+    mask += str(plen)
+    return mask
+
+
+def generate_pubkey_mask():
+    """
+    Generates public key mask space
+    2nd-7th most significant bit of modulus | 2nd least significant bit of modulus | modulus mod 3 | modulus_length_in_bits mod 2
+    :return:
+    """
+    for plen in range(0,2):
+        for prem in range(0,3):
+            for plsb in range(0,2):
+                for pmsb in range(0, 0x40):
+                    yield generate_pubkey_mask_src(pmsb=pmsb, plsb=plsb, prem=prem, plen=plen)
+
+
 if __name__ == "__main__":
     print compute_key_mask(888888888L)
 
