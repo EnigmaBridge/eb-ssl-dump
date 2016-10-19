@@ -115,25 +115,44 @@ def main():
         for cert in cert_db:
             print cert['cert']
 
-
     # Load statistics
     st = key_stats.KeyStats()
     st.load_tables()
     if args.verbose:
         print('Source stats: ')
-        print(st.sources_cn)
-
-    for source in st.sources_masks:
-        cn = st.sources_cn[source]
-        print('Source: %s samples: %d' % (source, cn))
-        # chi = chisquare()
-
-        gen = keys_basic.generate_pubkey_mask()
+        for src in st.sources_cn:
+            print(' %30s: %08d' % (src, st.sources_cn[src]))
 
     # mask indices
     mask_map, mask_max, mask_map_x, mask_map_y, mask_map_last_x, mask_map_last_y = keys_basic.generate_pubkey_mask_indices()
     print('Max mask 1D config: [%d]' % mask_max)
     print('Max mask 2D config: [%d, %d]' % (mask_map_last_x, mask_map_last_y))
+
+    # Simple match
+    print('Per-key matching: ')
+    for idx,cert in enumerate(cert_db):
+        mask = cert['pubkey']['mask']
+        print('Key %02d, mask: %s' % (idx, mask))
+
+        res = []
+        for src in st.table_prob[mask]:
+            res.append((src, st.table_prob[mask][src]))
+
+        res = sorted(res, key=lambda x: x[1], reverse=True)
+        for tup in res:
+            print(' - %04f %s [%s]' % (tup[1], tup[0], st.src_to_group(tup[0])))
+
+    # Likelihood computation
+    pass
+
+    # Chisquare
+    for source in st.sources_masks:
+        cn = st.sources_cn[source]
+        # chi = chisquare()
+        # gen = keys_basic.generate_pubkey_mask()
+
+
+    return
 
     # 2D Key plot
     scale = float(mask_max/2.0)
@@ -154,9 +173,8 @@ def main():
                     s=scale,
                     alpha=0.3)
         pass
-    
-    plt.scatter(mask_map_last_x, mask_map_last_y, c='red', s=scale, alpha=0.3)
 
+    plt.scatter(mask_map_last_x, mask_map_last_y, c='red', s=scale, alpha=0.3)
     plt.legend()
     plt.grid(True)
     plt.show()
