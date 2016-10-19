@@ -90,7 +90,7 @@ Group NA: openssl 1.0.2g fips 2.0.12, safenet luna sa-1700, gemalto gcx4 72k
             for mask in mask_gen:
                 total = sum(self.table_prob[mask].values())
                 for source in self.sources_masks_prob:
-                    if total < 0.0000000001:
+                    if total < 1e-250:
                         self.table_prob[mask][source] = None
                     else:
                         self.table_prob[mask][source] *= (1.0/total)
