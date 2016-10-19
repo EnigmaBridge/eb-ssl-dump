@@ -9,19 +9,21 @@ __author__ = 'dusanklinec'
 class KeyStats(object):
     CLASSIFICATION_TABLE_PATH = './classificationTable_20161018_pub.json'
     GROUPS = '''
-Group I:	G&D SmartCafe 4.x, G&D SmartCafe 6.0
+Group I:	G&D SmartCafe 3.2
 Group II:	GNU Crypto 2.0.1
-Group III:	NXP J2D081, NXP J2E145G
-Group IV:	PGPSDK 4 FIPS
-Group V:	OpenSSL 1.0.2g
-Group VI:	Oberthur Cosmo Dual 72k
-Group VII:	NXP J2A080, NXP J2A081, NXP J3A081, NXP JCOP 41 v2.2.1
-Group VIII:	Bouncy Castle 1.53, Cryptix JCE 20050328, FlexiProvider 1.7p7, mbedTLS 2.2.1, SunRsaSign (OpenJDK 1.8), SunRsaSign OpenJDK 1.8.0
-Group IX:	Gemalto GXP E64
-Group X:	Bouncy Castle 1.54, Crypto++ 5.6.3, Microsoft .NET, Microsoft CNG, Microsoft CryptoAPI
-Group XI:	Botan 1.11.29, cryptlib 3.4.3, Feitian JavaCOS A22, Feitian JavaCOS A40, gemalto gcx4 72k, Gemalto GCX 72K, GNU Libgcrypt 1.6.5, libgcrypt 1.6.5, GNU Libgcrypt 1.6.5 FIPS, LibTomCrypt 1.17, Nettle 3.2, Oberthur Cosmo 64, OpenSSL FIPS 2.0.12, PGPSDK 4, WolfSSL 3.9.0, Utimaco Security Server Se50, OpenSSL 1.0.2g FIPS 2.0.12, libgcrypt 1.6.5 FIPS, SafeNet Luna SA-1700
-Group XII:	Infineon JTOP 80K
-Group XIII:	G&D SmartCafe 3.2'''
+Group III:	Gemalto GXP E64
+Group IV:	Infineon JTOP 80K
+Group V:	Oberthur Cosmo Dual 72k
+Group VI:	OpenSSL 1.0.2g
+Group VII:	PGPSDK 4 FIPS
+Group VIII:	G&D SmartCafe 4.x, G&D SmartCafe 6.0
+Group IX:	NXP J2D081, NXP J2E145G
+Group X:	NXP J2A080, NXP J2A081, NXP J3A081, NXP JCOP 41 v2.2.1
+Group XI:	Bouncy Castle 1.54, Crypto++ 5.6.3, Microsoft .NET, Microsoft CNG, Microsoft CryptoAPI
+Group XII:	Bouncy Castle 1.53, Cryptix JCE 20050328, FlexiProvider 1.7p7, mbedTLS 2.2.1, SunRsaSign (OpenJDK 1.8), sunrsasign openjdk 1.8.0, Utimaco Security Server Se50 LAN Appliance, utimaco security server se50
+Group XIII:	Botan 1.11.29, cryptlib 3.4.3, Feitian JavaCOS A22, Feitian JavaCOS A40, Gemalto GCX 72K, libgcrypt 1.6.5, GNU Libgcrypt 1.6.5, libgcrypt 1.6.5 fips, GNU Libgcrypt 1.6.5 FIPS, LibTomCrypt 1.17, Nettle 3.2, Oberthur Cosmo 64, OpenSSL FIPS 2.0.12, PGPSDK 4, SafeNet Luna SA-1700 LAN, WolfSSL 3.9.0
+Group NA: openssl 1.0.2g fips 2.0.12, safenet luna sa-1700, gemalto gcx4 72k
+'''
 
     def __init__(self):
         self.data = None
