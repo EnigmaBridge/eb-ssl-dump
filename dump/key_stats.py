@@ -31,6 +31,7 @@ Group XIII:	Botan 1.11.29, cryptlib 3.4.3, Feitian JavaCOS A22, Feitian JavaCOS 
         self.sources_cn = {}
         self.table_prob = {}
         self.groups = []
+        self.sources = []
         self.groups_sources_map = {}
         self.sources_groups_map = {}
 
@@ -57,6 +58,7 @@ Group XIII:	Botan 1.11.29, cryptlib 3.4.3, Feitian JavaCOS A22, Feitian JavaCOS 
             for source in table:
                 self.sources_masks[source] = {}
                 self.sources_masks_prob[source] = {}
+                self.sources.append(source)
 
                 count = 0
                 mask_gen = keys_basic.generate_pubkey_mask()

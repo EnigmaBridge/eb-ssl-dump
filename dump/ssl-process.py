@@ -227,16 +227,8 @@ def main():
     for idx,mask in enumerate(masks_db):
         masks_db_tup.append((idx,mask))
 
-    for i in range(0, 10):
-        masks = random_subset(masks_db_tup, 5)
-        ids = [x[0] for x in masks]
-        ids.sort()
-        print('Random subset %02d [%s] ' % (i, ', '.join([str(x) for x in ids])))
-
-        total_match([x[1] for x in masks], st)
-
     # Many random subsets, top groups
-    subs_size = 5
+    subs_size = 10
     subs_count = 10000
     groups_cnt = {}
     for i in range(0, subs_count):
@@ -250,14 +242,21 @@ def main():
         for tup in res:
             total += tup[1]
         for tup in res:
+            src = tup[0]
             score = long(math.floor(tup[1]*(1000.0/total)))
             if score == 0:
                 continue
-            grp = st.src_to_group(tup[0])
+
+            grp = st.src_to_group(src)
             if grp not in groups_cnt:
                 groups_cnt[grp] = score
             else:
                 groups_cnt[grp] += score
+
+            if src not in groups_cnt:
+                groups_cnt[src] = score
+            else:
+                groups_cnt[src] += score
 
         # best group only
         # best_src = res[0][0]
@@ -269,7 +268,7 @@ def main():
 
     plt.rcdefaults()
 
-    sources = st.groups
+    sources = st.sources #st.groups
     values = []
     for source in sources:
         val = groups_cnt[source] if source in groups_cnt else 0
@@ -293,11 +292,10 @@ def main():
         # gen = keys_basic.generate_pubkey_mask()
 
 
-    return
-
     # 2D Key plot
+    return
     scale = float(mask_max/2.0)
-    for mask in mask_db:
+    for mask in masks_db:
         mask_idx = mask_map[mask]
         parts = [x.replace('|', '') for x in mask.split('|', 1)]
 
