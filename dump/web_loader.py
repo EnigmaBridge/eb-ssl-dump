@@ -13,6 +13,10 @@ __author__ = 'dusanklinec'
 
 
 class ToolsLoader(object):
+    """
+    Uses web tool to dump all domains somehow related to the provided nameserver.
+    """
+
     BASE_URL = 'http://www.gwebtools.com/ns-spy/'
 
     def __init__(self, ns=None, attempts=10):
@@ -49,7 +53,7 @@ class ToolsLoader(object):
                 self.total = int(match.group(2))
                 print self.total
 
-        # parse domains
+        # parse domains - very simple regex rule, fragile
         regex = re.compile(r"<li class='col-xs-4' style='list-style:none; word-wrap: break-word;'>\s*"
                            r"<a href='(.+?)'>([^<]+?)</a></li>", re.IGNORECASE)
 
