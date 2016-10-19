@@ -89,7 +89,7 @@ def load_last_page(dump, ns):
         return max(tmp_pages)
 
 
-if __name__ == "__main__":
+def main():
     parser = argparse.ArgumentParser(description='NS dump')
     parser.add_argument('-p', dest='page', default=None)
     parser.add_argument('-w', dest='dump', default=None)
@@ -173,7 +173,9 @@ if __name__ == "__main__":
             print x
 
 
-
+# Launcher
+if __name__ == "__main__":
+    main()
 
 
 
