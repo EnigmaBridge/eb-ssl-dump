@@ -34,6 +34,7 @@ from Crypto.Cipher import AES
 from Crypto.Util.py3compat import *
 from Crypto.Util.number import long_to_bytes, bytes_to_long, size, ceil_div
 import key_stats
+import utils
 
 import Tkinter
 sys.modules['tkinter'] = Tkinter
@@ -121,13 +122,9 @@ def main():
 
     args = parser.parse_args()
 
-    # Require input
-    if len(args.files) == 0:
-        parser.print_usage()
-        sys.exit(1)
-
     masks_db = []
     cert_db = []
+    keys_db = []
 
     # Input = ssl-dump output
     if len(args.files) > 0:
@@ -176,7 +173,22 @@ def main():
                 print cert['cert']
 
     # public key list processing
+    if args.pubs is not None:
+        for pubf in args.pubs:
+            print pubf
+            with open(pubf, mode='r') as fh:
+                data = fh.read()
+                keys = []
+                for match in re.finditer(r'-----BEGIN PUBLIC KEY-----(.+?)-----END PUBLIC KEY-----', data, re.MULTILINE | re.DOTALL):
+                    key = match.group(0)
+                    keys.append(key)
 
+                # pubkey -> mask
+                for key in keys:
+                    pub = serialization.load_pem_public_key(key, utils.get_backend())
+                    mask = keys_basic.compute_key_mask(pub.public_numbers().n)
+                    keys_db.append(pub)
+                    masks_db.append(mask)
 
     # Load statistics
     st = key_stats.KeyStats()
