@@ -43,6 +43,21 @@ from scipy.stats import chisquare
 import matplotlib
 import matplotlib.pyplot as plt
 from numpy.random import rand
+import random
+import numpy
+
+
+def random_subset(a, size):
+    tmp = range(0, len(a))
+    res = set([])
+    while len(res) < size:
+        e = random.choice(tmp)
+        res.add(e)
+
+    res_elem = []
+    for i in res:
+        res_elem.append(a[i])
+    return list(res_elem)
 
 
 def print_res(res, st):
@@ -54,6 +69,29 @@ def print_res(res, st):
         if tup[1] < 1e-200:
             continue
         print(' - %s [%2.4f %%] %s [%s]' % (tup[1], tup[1]*(100.0/total), tup[0], st.src_to_group(tup[0])))
+
+
+def total_match(certs, st):
+    src_total_match = {}
+    for idx,cert in enumerate(certs):
+        mask = cert['pubkey']['mask']
+
+        for src in st.table_prob[mask]:
+            val = st.table_prob[mask][src]
+            if val is None:
+                val = 0
+
+            if src not in src_total_match:
+                src_total_match[src] = 1
+
+            src_total_match[src] *= val
+
+    # Total output
+    res = []
+    for src in src_total_match:
+        val = src_total_match[src]
+        res.append((src, val))
+    print_res(res, st)
 
 
 def main():
@@ -153,26 +191,22 @@ def main():
 
     # Total key matching
     print('Fit for all keys in one distribution:')
-    src_total_match = {}
+    total_match(cert_db, st)
+
+    # Random subset
+    cert_db_tup = []
     for idx,cert in enumerate(cert_db):
-        mask = cert['pubkey']['mask']
+        cert_db[idx]['idx'] = idx
+        cert['idx'] = idx
+        cert_db_tup.append(cert)
 
-        for src in st.table_prob[mask]:
-            val = st.table_prob[mask][src]
-            if val is None:
-                val = 0
+    for i in range(0, 10):
+        certs = random_subset(cert_db_tup, 5)
+        ids = [x['idx'] for x in certs]
+        ids.sort()
+        print('Random subset %02d [%s] ' % (i, ', '.join([str(x) for x in ids])))
 
-            if src not in src_total_match:
-                src_total_match[src] = 1
-
-            src_total_match[src] *= val
-
-    # Total output
-    res = []
-    for src in src_total_match:
-        val = src_total_match[src]
-        res.append((src, val))
-    print_res(res, st)
+        total_match(certs, st)
 
 
 
