@@ -100,9 +100,7 @@ def main():
         print('Certificate database size %d' % len(cert_db))
 
     if args.dump_json:
-        print '-----BEGIN JSON-----'
-        print cert_db
-        print '-----END JSON-----'
+        print(json.dumps(cert_db))
 
     if args.dump_cert:
         for cert in cert_db:
