@@ -117,6 +117,8 @@ def main():
     parser.add_argument('--pubs', dest='pubs', nargs=argparse.ZERO_OR_MORE,
                         help='File with public keys (PEM)')
 
+    parser.add_argument('--ossl', dest='ossl', type=int, default=None, help='OpenSSL generator')
+
     parser.add_argument('files', nargs=argparse.ZERO_OR_MORE, default=[],
                         help='file with ssl-dump json output')
 
@@ -189,6 +191,18 @@ def main():
                     mask = keys_basic.compute_key_mask(pub.public_numbers().n)
                     keys_db.append(pub)
                     masks_db.append(mask)
+
+    if args.ossl is not None:
+        for i in range(0, args.ossl):
+            print('Generating RSA1024 key %03d' % i)
+            key = OpenSSL.crypto.PKey()
+            key.generate_key(OpenSSL.crypto.TYPE_RSA, 1024)
+            key_pem = OpenSSL.crypto.dump_privatekey(OpenSSL.crypto.FILETYPE_PEM, key)
+
+            priv = serialization.load_pem_private_key(key_pem, None, utils.get_backend())
+            mask = keys_basic.compute_key_mask(priv.public_key().public_numbers().n)
+            keys_db.append(priv.public_key())
+            masks_db.append(mask)
 
     # Load statistics
     st = key_stats.KeyStats()
@@ -268,7 +282,7 @@ def main():
 
     plt.rcdefaults()
 
-    sources = st.sources #st.groups
+    sources = st.groups
     values = []
     for source in sources:
         val = groups_cnt[source] if source in groups_cnt else 0
