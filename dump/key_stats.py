@@ -27,8 +27,9 @@ class KeyStats(object):
                     count += table[source][mask]
 
                 self.sources_cn[source] = count
-
         pass
+
+
 
 
 

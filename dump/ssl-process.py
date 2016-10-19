@@ -42,6 +42,12 @@ def main():
                         help='Number of threads to use for cert download')
     parser.add_argument('--debug', dest='debug', action='store_const', const=True,
                         help='enables debug mode')
+    parser.add_argument('--verbose', dest='verbose', action='store_const', const=True,
+                        help='enables verbose mode')
+    parser.add_argument('--dump-json', dest='dump_json', action='store_const', const=True,
+                        help='dumps JSON of the filtered certificates')
+    parser.add_argument('--dump-cert', dest='dump_cert', action='store_const', const=True,
+                        help='dumps PEM of the filtered certificates')
     parser.add_argument('-f', '--filter-org', dest='filter_org',
                         help='Filter out certificates issued with given organization - regex')
     parser.add_argument('files', nargs=argparse.ONE_OR_MORE, default=[],
@@ -85,12 +91,30 @@ def main():
             org = ''
 
         if re_org is not None and re_org.match(org) is None:
-            print('Organization filtered out %s' % org)
+            if args.verbose:
+                print('Organization filtered out %s' % org)
             continue
         cert_db.append(cert)
 
-    print('Certificate database size %d' % len(cert_db))
-    
+    if args.verbose:
+        print('Certificate database size %d' % len(cert_db))
+
+    if args.dump_json:
+        print '-----BEGIN JSON-----'
+        print cert_db
+        print '-----END JSON-----'
+
+    if args.dump_cert:
+        for cert in cert_db:
+            print cert['cert']
+
+
+    # Load statistics
+    st = key_stats.KeyStats()
+    st.load_tables()
+    if args.verbose:
+        print('Source stats: ')
+        print(st.sources_cn)
 
 
 
