@@ -117,6 +117,9 @@ def main():
     parser.add_argument('--pubs', dest='pubs', nargs=argparse.ZERO_OR_MORE,
                         help='File with public keys (PEM)')
 
+    parser.add_argument('--certs', dest='certs', nargs=argparse.ZERO_OR_MORE,
+                        help='File with certificates (PEM)')
+
     parser.add_argument('--ossl', dest='ossl', type=int, default=None, help='OpenSSL generator')
 
     parser.add_argument('files', nargs=argparse.ZERO_OR_MORE, default=[],
@@ -177,7 +180,6 @@ def main():
     # public key list processing
     if args.pubs is not None:
         for pubf in args.pubs:
-            print pubf
             with open(pubf, mode='r') as fh:
                 data = fh.read()
                 keys = []
@@ -188,6 +190,23 @@ def main():
                 # pubkey -> mask
                 for key in keys:
                     pub = serialization.load_pem_public_key(key, utils.get_backend())
+                    mask = keys_basic.compute_key_mask(pub.public_numbers().n)
+                    keys_db.append(pub)
+                    masks_db.append(mask)
+
+    if args.certs is not None:
+        for certf in args.certs:
+            with open(certf, mode='r') as fh:
+                data = fh.read()
+                certs = []
+                for match in re.finditer(r'-----BEGIN CERTIFICATE-----(.+?)-----END CERTIFICATE-----', data, re.MULTILINE | re.DOTALL):
+                    cert = match.group(0)
+                    certs.append(cert)
+
+                # cert -> mask
+                for cert in certs:
+                    x509 = utils.load_x509(str(cert))
+                    pub = x509.public_key()
                     mask = keys_basic.compute_key_mask(pub.public_numbers().n)
                     keys_db.append(pub)
                     masks_db.append(mask)
@@ -307,7 +326,7 @@ def main():
 
 
     # 2D Key plot
-    return
+    # return
     scale = float(mask_max/2.0)
     for mask in masks_db:
         mask_idx = mask_map[mask]
