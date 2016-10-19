@@ -45,6 +45,17 @@ import matplotlib.pyplot as plt
 from numpy.random import rand
 
 
+def print_res(res, st):
+    total = 0.0
+    res = sorted(res, key=lambda x: x[1], reverse=True)
+    for tup in res:
+        total += tup[1]
+    for tup in res:
+        if tup[1] < 1e-200:
+            continue
+        print(' - %s [%2.4f %%] %s [%s]' % (tup[1], tup[1]*(100.0/total), tup[0], st.src_to_group(tup[0])))
+
+
 def main():
     parser = argparse.ArgumentParser(description='SSL dump')
     parser.add_argument('-t', '--threads', dest='threads', type=int, default=None,
@@ -136,14 +147,57 @@ def main():
 
         res = []
         for src in st.table_prob[mask]:
-            res.append((src, st.table_prob[mask][src]))
+            val = st.table_prob[mask][src]
+            res.append((src, val if val is not None else 0))
+        print_res(res, st)
 
-        res = sorted(res, key=lambda x: x[1], reverse=True)
-        for tup in res:
-            print(' - %04f %s [%s]' % (tup[1], tup[0], st.src_to_group(tup[0])))
+    # Total key matching
+    print('Fit for all keys in one distribution:')
+    src_total_match = {}
+    for idx,cert in enumerate(cert_db):
+        mask = cert['pubkey']['mask']
 
-    # Likelihood computation
-    pass
+        for src in st.table_prob[mask]:
+            val = st.table_prob[mask][src]
+            if val is None:
+                val = 0
+
+            if src not in src_total_match:
+                src_total_match[src] = 1
+
+            src_total_match[src] *= val
+
+    # Total output
+    res = []
+    for src in src_total_match:
+        val = src_total_match[src]
+        res.append((src, val))
+    print_res(res, st)
+
+
+
+
+
+
+
+    # # Likelihood computation
+    # print('Likelihood matching: ')
+    # src_likelihood = {}
+    # for idx,cert in enumerate(cert_db):
+    #     mask = cert['pubkey']['mask']
+    #
+    #
+    # for idx,cert in enumerate(cert_db):
+    #     mask = cert['pubkey']['mask']
+    #     print('Key %02d, mask: %s' % (idx, mask))
+    #
+    #     res = []
+    #     for src in st.table_prob[mask]:
+    #         res.append((src, st.table_prob[mask][src]))
+    #
+    #     res = sorted(res, key=lambda x: x[1], reverse=True)
+    #     for tup in res:
+    #         print(' - %04f %s [%s]' % (tup[1], tup[0], st.src_to_group(tup[0])))
 
     # Chisquare
     for source in st.sources_masks:
