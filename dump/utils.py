@@ -32,3 +32,7 @@ def get_backend(backend=None):
     return default_backend() if backend is None else backend
 
 
+def load_x509(data, backend=None):
+    return load_pem_x509_certificate(data, get_backend(backend))
+
+
