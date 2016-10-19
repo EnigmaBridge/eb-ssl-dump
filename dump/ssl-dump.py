@@ -120,6 +120,42 @@ if args.web is not None:
                 for d in js[ns]['domains']:
                     domains.add(d)
 
+if args.scrapy is not None:
+    for scrap in args.scrapy:
+        with open(scrap, mode='r') as fh:
+            print('Processing scrapy file %s' % scrap)
+            data = fh.read()
+
+            try:
+                # postprocessing - unify to one array
+                new_lines = []
+                lines = data.split('\n')
+                ln = len(lines)
+                i_new = 0
+                for i in range(0, ln):
+                    line = lines[i].strip()
+                    if len(line) == 0 or ',' == line:
+                        continue
+                    if '][' == line:
+                        if i_new > 0 and not new_lines[i_new - 1].strip().endswith(','):
+                            new_lines[i_new - 1] += ','
+                        continue
+                    if line.endswith('}['):
+                        line = line.replace('}[', '},')
+                    new_lines.append(line)
+                    i_new += 1
+
+                data = '\n'.join(new_lines)
+                js = json.loads(data)
+                for rec in js:
+                    domains.add(rec['url'])
+            except:
+                # print data
+                if args.debug:
+                    traceback.print_exc()
+                raise
+
+
 if len(domains) == 0:
     print 'No domains given'
     sys.exit(1)
