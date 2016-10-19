@@ -49,16 +49,22 @@ def load_x509(data, backend=None):
 # Arguments
 #
 parser = argparse.ArgumentParser(description='SSL dump')
-parser.add_argument('-t',   dest='threads', type=int, default=None)
-parser.add_argument('-d',   dest='domains', nargs=argparse.ZERO_OR_MORE,
-                            help='domains to process', default=[])
-parser.add_argument('--bw', dest='bw', nargs=argparse.ZERO_OR_MORE, default=[], help='BuiltWith CSV dump, domain first, comma separated')
-parser.add_argument('--spy', dest='spy', nargs=argparse.ZERO_OR_MORE, default=[], help='webspy JSON format')
-parser.add_argument('--web', dest='web', nargs=argparse.ZERO_OR_MORE, default=[], help='Produced by web_loader')
+parser.add_argument('-t', '--threads', dest='threads', type=int, default=None,
+                    help='Number of threads to use for cert download')
+parser.add_argument('-d', dest='domains', nargs=argparse.ZERO_OR_MORE,
+                    help='domains to process', default=[])
+parser.add_argument('--bw', dest='bw', nargs=argparse.ZERO_OR_MORE, default=[],
+                    help='BuiltWith CSV dump, domain first, comma separated')
+parser.add_argument('--spy', dest='spy', nargs=argparse.ZERO_OR_MORE, default=[],
+                    help='webspy JSON format')
+parser.add_argument('--web', dest='web', nargs=argparse.ZERO_OR_MORE, default=[],
+                    help='Produced by web_loader')
+parser.add_argument('--scrapy', dest='scrapy', nargs=argparse.ZERO_OR_MORE, default=[],
+                    help='Produced by scrapy crawler')
 parser.add_argument('--debug', dest='debug', action='store_const', const=True,
-                            help='enables debug mode')
+                    help='enables debug mode')
 parser.add_argument('files', nargs=argparse.ZERO_OR_MORE, default=[],
-                            help='file with domains to process, whitespace separated')
+                    help='file with domains to process, whitespace separated')
 
 args = parser.parse_args()
 
