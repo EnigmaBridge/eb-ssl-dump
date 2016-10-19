@@ -31,6 +31,7 @@ Group NA: openssl 1.0.2g fips 2.0.12, safenet luna sa-1700, gemalto gcx4 72k
         self.sources_masks_prob = {}
         self.sources_cn = {}
         self.table_prob = {}
+        self.groups = []
         self.groups_sources_map = {}
         self.sources_groups_map = {}
 
@@ -40,8 +41,9 @@ Group NA: openssl 1.0.2g fips 2.0.12, safenet luna sa-1700, gemalto gcx4 72k
         for line in gcand:
             parts = [x.strip() for x in line.split(':', 1)]
             grp = parts[0]
-            sources = [x.strip() for x in parts[1].split(',')]
+            self.groups.append(grp)
 
+            sources = [x.strip() for x in parts[1].split(',')]
             self.groups_sources_map[grp] = sources
             for source in sources:
                 self.sources_groups_map[source.lower()] = grp
