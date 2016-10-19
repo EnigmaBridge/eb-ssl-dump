@@ -21,8 +21,7 @@ Group IX:	NXP J2D081, NXP J2E145G
 Group X:	NXP J2A080, NXP J2A081, NXP J3A081, NXP JCOP 41 v2.2.1
 Group XI:	Bouncy Castle 1.54, Crypto++ 5.6.3, Microsoft .NET, Microsoft CNG, Microsoft CryptoAPI
 Group XII:	Bouncy Castle 1.53, Cryptix JCE 20050328, FlexiProvider 1.7p7, mbedTLS 2.2.1, SunRsaSign (OpenJDK 1.8), sunrsasign openjdk 1.8.0, Utimaco Security Server Se50 LAN Appliance, utimaco security server se50
-Group XIII:	Botan 1.11.29, cryptlib 3.4.3, Feitian JavaCOS A22, Feitian JavaCOS A40, Gemalto GCX 72K, libgcrypt 1.6.5, GNU Libgcrypt 1.6.5, libgcrypt 1.6.5 fips, GNU Libgcrypt 1.6.5 FIPS, LibTomCrypt 1.17, Nettle 3.2, Oberthur Cosmo 64, OpenSSL FIPS 2.0.12, PGPSDK 4, SafeNet Luna SA-1700 LAN, WolfSSL 3.9.0
-Group NA: openssl 1.0.2g fips 2.0.12, safenet luna sa-1700, gemalto gcx4 72k
+Group XIII:	Botan 1.11.29, cryptlib 3.4.3, Feitian JavaCOS A22, Feitian JavaCOS A40, Gemalto GCX 72K, gemalto gcx4 72k, libgcrypt 1.6.5, GNU Libgcrypt 1.6.5, libgcrypt 1.6.5 fips, GNU Libgcrypt 1.6.5 FIPS, LibTomCrypt 1.17, Nettle 3.2, Oberthur Cosmo 64, OpenSSL FIPS 2.0.12, openssl 1.0.2g fips 2.0.12, PGPSDK 4, SafeNet Luna SA-1700 LAN, safenet luna sa-1700, WolfSSL 3.9.0
 '''
 
     def __init__(self):
