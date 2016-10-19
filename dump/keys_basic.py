@@ -92,6 +92,40 @@ def generate_pubkey_mask():
                     yield generate_pubkey_mask_src(pmsb=pmsb, plsb=plsb, prem=prem, plen=plen)
 
 
+def generate_pubkey_mask_indices():
+    """
+    Generate index of the mask - ordinal number in the ordering defined by a generator.
+    Generates also 2D breakdown for the 2D charts
+    :return:
+    """
+
+    # mask index
+    mask_map = {}
+    mask_max = 0
+
+    # mask index 2D breakdown
+    mask_gen = generate_pubkey_mask()
+    mask_map_x = {}
+    mask_map_last_x = 0
+    mask_map_y = {}
+    mask_map_last_y = 0
+    for idx, mask in enumerate(mask_gen):
+        parts = [x.replace('|', '') for x in mask.split('|', 1)]
+        x = parts[0]
+        y = parts[1]
+        if x not in mask_map_x:
+            mask_map_x[x] = mask_map_last_x
+            mask_map_last_x += 1
+
+        if y not in mask_map_y:
+            mask_map_y[y] = mask_map_last_y
+            mask_map_last_y += 1
+
+        mask_map[mask] = idx
+        mask_max = idx
+    return mask_map, mask_max, mask_map_x, mask_map_y, mask_map_last_x-1, mask_map_last_y-1
+
+
 if __name__ == "__main__":
     print compute_key_mask(888888888L)
 

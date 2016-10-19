@@ -35,6 +35,15 @@ from Crypto.Util.py3compat import *
 from Crypto.Util.number import long_to_bytes, bytes_to_long, size, ceil_div
 import key_stats
 
+import Tkinter
+sys.modules['tkinter'] = Tkinter
+
+import scipy
+from scipy.stats import chisquare
+import matplotlib
+import matplotlib.pyplot as plt
+from numpy.random import rand
+
 
 def main():
     parser = argparse.ArgumentParser(description='SSL dump')
@@ -113,6 +122,46 @@ def main():
     if args.verbose:
         print('Source stats: ')
         print(st.sources_cn)
+
+    for source in st.sources_masks:
+        cn = st.sources_cn[source]
+        print('Source: %s samples: %d' % (source, cn))
+        # chi = chisquare()
+
+        gen = keys_basic.generate_pubkey_mask()
+
+    # mask indices
+    mask_map, mask_max, mask_map_x, mask_map_y, mask_map_last_x, mask_map_last_y = keys_basic.generate_pubkey_mask_indices()
+    print('Max mask 1D config: [%d]' % mask_max)
+    print('Max mask 2D config: [%d, %d]' % (mask_map_last_x, mask_map_last_y))
+
+    # 2D Key plot
+    scale = float(mask_max/2.0)
+    for cert in cert_db:
+        mask = cert['pubkey']['mask']
+        mask_idx = mask_map[mask]
+        parts = [x.replace('|', '') for x in mask.split('|', 1)]
+
+        y = 0
+        x = mask_idx
+
+        # y = (mask_idx >> 5) & 0x1f
+        # x = mask_idx & 0x1f
+
+        x = mask_map_x[parts[0]]
+        y = mask_map_y[parts[1]]
+        plt.scatter(x, y,
+                    s=scale,
+                    alpha=0.3)
+        pass
+    
+    plt.scatter(mask_map_last_x, mask_map_last_y, c='red', s=scale, alpha=0.3)
+
+    plt.legend()
+    plt.grid(True)
+    plt.show()
+
+
 
 
 
