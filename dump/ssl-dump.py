@@ -206,23 +206,6 @@ def get_dn_part(subject, oid=None):
     return None
 
 
-class TimeoutError(Exception):
-    pass
-
-
-class timeout:
-    def __init__(self, seconds=1, error_message='Timeout'):
-        self.seconds = seconds
-        self.error_message = error_message
-    def handle_timeout(self, signum, frame):
-        raise TimeoutError(self.error_message)
-    def __enter__(self):
-        signal.signal(signal.SIGALRM, self.handle_timeout)
-        signal.alarm(self.seconds)
-    def __exit__(self, type, value, traceback):
-        signal.alarm(0)
-
-
 def unix_time_millis(dt):
     return (dt - epoch).total_seconds()
 
@@ -337,10 +320,6 @@ def process_domain(d):
         return cd
 
     except KeyboardInterrupt:
-        return None
-    except TimeoutError:
-        if args.debug:
-            traceback.print_exc()
         return None
     except requests.exceptions.ConnectTimeout:
         if args.debug:
