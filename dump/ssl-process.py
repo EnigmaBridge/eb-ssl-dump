@@ -44,7 +44,8 @@ import matplotlib
 import matplotlib.pyplot as plt
 from numpy.random import rand
 import random
-import numpy
+import numpy as np
+import math
 
 
 def random_subset(a, size):
@@ -71,11 +72,9 @@ def print_res(res, st):
         print(' - %s [%2.4f %%] %s [%s]' % (tup[1], tup[1]*(100.0/total), tup[0], st.src_to_group(tup[0])))
 
 
-def total_match(certs, st):
+def comp_total_match(certs, st):
     src_total_match = {}
-    for idx,cert in enumerate(certs):
-        mask = cert['pubkey']['mask']
-
+    for idx,mask in enumerate(certs):
         for src in st.table_prob[mask]:
             val = st.table_prob[mask][src]
             if val is None:
@@ -91,7 +90,12 @@ def total_match(certs, st):
     for src in src_total_match:
         val = src_total_match[src]
         res.append((src, val))
-    print_res(res, st)
+    res = sorted(res, key=lambda x: x[1], reverse=True)
+    return res
+
+
+def total_match(certs, st):
+    print_res(comp_total_match(certs, st), st)
 
 
 def main():
@@ -108,7 +112,11 @@ def main():
                         help='dumps PEM of the filtered certificates')
     parser.add_argument('-f', '--filter-org', dest='filter_org',
                         help='Filter out certificates issued with given organization - regex')
-    parser.add_argument('files', nargs=argparse.ONE_OR_MORE, default=[],
+
+    parser.add_argument('--pubs', dest='pubs', nargs=argparse.ZERO_OR_MORE,
+                        help='File with public keys (PEM)')
+
+    parser.add_argument('files', nargs=argparse.ZERO_OR_MORE, default=[],
                         help='file with ssl-dump json output')
 
     args = parser.parse_args()
@@ -118,51 +126,57 @@ def main():
         parser.print_usage()
         sys.exit(1)
 
+    masks_db = []
     cert_db = []
 
-    # Read input files
-    for fl in args.files:
-        with open(fl, mode='r') as fh:
-            data = fh.read()
+    # Input = ssl-dump output
+    if len(args.files) > 0:
+        for fl in args.files:
+            with open(fl, mode='r') as fh:
+                data = fh.read()
 
-            # Parse json out
-            if '-----BEGIN JSON-----' in data:
-                if '-----END JSON-----' not in data:
-                    raise ValueError('BEGIN JSON present but END JSON not')
-                match = re.search(r'-----BEGIN JSON-----(.+?)-----END JSON-----', data, re.MULTILINE | re.DOTALL)
-                if match is None:
-                    raise ValueError('Could not extract JSON')
-                data = match.group(1)
+                # Parse json out
+                if '-----BEGIN JSON-----' in data:
+                    if '-----END JSON-----' not in data:
+                        raise ValueError('BEGIN JSON present but END JSON not')
+                    match = re.search(r'-----BEGIN JSON-----(.+?)-----END JSON-----', data, re.MULTILINE | re.DOTALL)
+                    if match is None:
+                        raise ValueError('Could not extract JSON')
+                    data = match.group(1)
 
-            json_data = json.loads(data)
-            for rec in json_data:
-                cert_db.append(rec)
+                json_data = json.loads(data)
+                for rec in json_data:
+                    cert_db.append(rec)
 
-    # Filtering
-    cert_db_old = cert_db
-    cert_db = []
-    re_org = None if args.filter_org is None else re.compile(args.filter_org, re.IGNORECASE)
+        # Filtering
+        cert_db_old = cert_db
+        cert_db = []
+        re_org = None if args.filter_org is None else re.compile(args.filter_org, re.IGNORECASE)
 
-    for cert in cert_db_old:
-        org = cert['org']
-        if org is None:
-            org = ''
+        for cert in cert_db_old:
+            org = cert['org']
+            if org is None:
+                org = ''
 
-        if re_org is not None and re_org.match(org) is None:
-            if args.verbose:
-                print('Organization filtered out %s' % org)
-            continue
-        cert_db.append(cert)
+            if re_org is not None and re_org.match(org) is None:
+                if args.verbose:
+                    print('Organization filtered out %s' % org)
+                continue
+            cert_db.append(cert)
+            masks_db.append(cert['pubkey']['mask'])
 
-    if args.verbose:
-        print('Certificate database size %d' % len(cert_db))
+        if args.verbose:
+            print('Certificate database size %d' % len(cert_db))
 
-    if args.dump_json:
-        print(json.dumps(cert_db))
+        if args.dump_json:
+            print(json.dumps(cert_db))
 
-    if args.dump_cert:
-        for cert in cert_db:
-            print cert['cert']
+        if args.dump_cert:
+            for cert in cert_db:
+                print cert['cert']
+
+    # public key list processing
+
 
     # Load statistics
     st = key_stats.KeyStats()
@@ -177,10 +191,13 @@ def main():
     print('Max mask 1D config: [%d]' % mask_max)
     print('Max mask 2D config: [%d, %d]' % (mask_map_last_x, mask_map_last_y))
 
+    # masks processing part
+    if len(masks_db) == 0:
+        return
+
     # Simple match
     print('Per-key matching: ')
-    for idx,cert in enumerate(cert_db):
-        mask = cert['pubkey']['mask']
+    for idx,mask in enumerate(masks_db):
         print('Key %02d, mask: %s' % (idx, mask))
 
         res = []
@@ -191,47 +208,71 @@ def main():
 
     # Total key matching
     print('Fit for all keys in one distribution:')
-    total_match(cert_db, st)
+    total_match(masks_db, st)
 
     # Random subset
-    cert_db_tup = []
-    for idx,cert in enumerate(cert_db):
-        cert_db[idx]['idx'] = idx
-        cert['idx'] = idx
-        cert_db_tup.append(cert)
+    masks_db_tup = []
+    for idx,mask in enumerate(masks_db):
+        masks_db_tup.append((idx,mask))
 
     for i in range(0, 10):
-        certs = random_subset(cert_db_tup, 5)
-        ids = [x['idx'] for x in certs]
+        masks = random_subset(masks_db_tup, 5)
+        ids = [x[0] for x in masks]
         ids.sort()
         print('Random subset %02d [%s] ' % (i, ', '.join([str(x) for x in ids])))
 
-        total_match(certs, st)
+        total_match([x[1] for x in masks], st)
 
+    # Many random subsets, top groups
+    subs_size = 5
+    subs_count = 10000
+    groups_cnt = {}
+    for i in range(0, subs_count):
+        masks = random_subset(masks_db_tup, subs_size)
+        ids = [x[0] for x in masks]
+        ids.sort()
 
+        res = comp_total_match([x[1] for x in masks], st)
 
+        total = 0.0
+        for tup in res:
+            total += tup[1]
+        for tup in res:
+            score = long(math.floor(tup[1]*(1000.0/total)))
+            if score == 0:
+                continue
+            grp = st.src_to_group(tup[0])
+            if grp not in groups_cnt:
+                groups_cnt[grp] = score
+            else:
+                groups_cnt[grp] += score
 
+        # best group only
+        # best_src = res[0][0]
+        # best_grp = st.src_to_group(best_src)
+        # if best_grp not in groups_cnt:
+        #     groups_cnt[best_grp] = 1
+        # else:
+        #     groups_cnt[best_grp] += 1
 
+    plt.rcdefaults()
 
+    sources = st.groups
+    values = []
+    for source in sources:
+        val = groups_cnt[source] if source in groups_cnt else 0
+        values.append(val)
+    print sources
+    print values
 
-    # # Likelihood computation
-    # print('Likelihood matching: ')
-    # src_likelihood = {}
-    # for idx,cert in enumerate(cert_db):
-    #     mask = cert['pubkey']['mask']
-    #
-    #
-    # for idx,cert in enumerate(cert_db):
-    #     mask = cert['pubkey']['mask']
-    #     print('Key %02d, mask: %s' % (idx, mask))
-    #
-    #     res = []
-    #     for src in st.table_prob[mask]:
-    #         res.append((src, st.table_prob[mask][src]))
-    #
-    #     res = sorted(res, key=lambda x: x[1], reverse=True)
-    #     for tup in res:
-    #         print(' - %04f %s [%s]' % (tup[1], tup[0], st.src_to_group(tup[0])))
+    y_pos = np.arange(len(sources))
+    plt.barh(y_pos, values, align='center', alpha=0.4)
+    plt.yticks(y_pos, sources)
+    plt.xlabel('# of occurences as top group (best fit)')
+    plt.title('Groups vs. %d random %d-subsets' % (subs_count, subs_size))
+
+    plt.show()
+
 
     # Chisquare
     for source in st.sources_masks:
@@ -244,8 +285,7 @@ def main():
 
     # 2D Key plot
     scale = float(mask_max/2.0)
-    for cert in cert_db:
-        mask = cert['pubkey']['mask']
+    for mask in mask_db:
         mask_idx = mask_map[mask]
         parts = [x.replace('|', '') for x in mask.split('|', 1)]
 
