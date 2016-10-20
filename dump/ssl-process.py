@@ -171,6 +171,13 @@ def main():
 
     parser.add_argument('--ossl', dest='ossl', type=int, default=None, help='OpenSSL generator')
 
+    parser.add_argument('--subs', dest='subs', action='store_const', const=True,
+                        help='Plot random subgroups charts')
+    parser.add_argument('--subs-k', dest='subs_k', type=int, default=5,
+                        help='Size of the subset')
+    parser.add_argument('--subs-n', dest='subs_n', type=int, default=1000,
+                        help='Number of subsets to sample')
+
     parser.add_argument('--key-dist', dest='plot_key_dist', action='store_const', const=True,
                         help='Plots key mask distribution')
 
@@ -308,7 +315,7 @@ def main():
     res = comp_total_match(masks_db, st)
     print_res(res, st)
     res = st.res_src_to_group(res)
-    bar_chart(res=res, title='Fit for all keys')
+    # bar_chart(res=res, title='Fit for all keys')
 
     # Sum it
     print('All keys sums:')
@@ -322,7 +329,7 @@ def main():
     res = key_val_to_list(src_total_match)
     print_res(res, st)
     res = st.res_src_to_group(res)
-    bar_chart(res=res, title='Sum for all keys')
+    # bar_chart(res=res, title='Sum for all keys')
 
     # Avg + mean
     print('Avg + mean:')
@@ -342,62 +349,61 @@ def main():
 
     # Total output
     print_res(res, st, error=devs)
-    bar_chart(res=res, error=devs, title='Avg for all keys + error')
+    # bar_chart(res=res, error=devs, title='Avg for all keys + error')
 
     # Random subset
-    masks_db_tup = []
-    for idx,mask in enumerate(masks_db):
-        masks_db_tup.append((idx,mask))
+    if args.subs:
+        masks_db_tup = []
+        for idx,mask in enumerate(masks_db):
+            masks_db_tup.append((idx,mask))
 
-    # Many random subsets, top groups
-    subs_size = 10
-    subs_count = 10000
-    groups_cnt = {}
-    for i in range(0, subs_count):
-        masks = random_subset(masks_db_tup, subs_size)
-        ids = [x[0] for x in masks]
-        ids.sort()
+        # Many random subsets, top groups
+        subs_size = args.subs_k
+        subs_count = args.subs_n
+        groups_cnt = {}
+        for i in range(0, subs_count):
+            masks = random_subset(masks_db_tup, subs_size)
+            ids = [x[0] for x in masks]
+            ids.sort()
 
-        res = comp_total_match([x[1] for x in masks], st)
+            res = comp_total_match([x[1] for x in masks], st)
 
-        total = 0.0
-        for tup in res:
-            total += tup[1]
-        for tup in res:
-            src = tup[0]
-            score = long(math.floor(tup[1]*(1000.0/total)))
-            if score == 0:
-                continue
+            total = 0.0
+            for tup in res:
+                total += tup[1]
+            for tup in res:
+                src = tup[0]
+                score = long(math.floor(tup[1]*(1000.0/total)))
+                if score == 0:
+                    continue
 
-            grp = st.src_to_group(src)
-            if grp not in groups_cnt:
-                groups_cnt[grp] = score
-            else:
-                groups_cnt[grp] += score
+                grp = st.src_to_group(src)
+                if grp not in groups_cnt:
+                    groups_cnt[grp] = score
+                else:
+                    groups_cnt[grp] += score
 
-            if src not in groups_cnt:
-                groups_cnt[src] = score
-            else:
-                groups_cnt[src] += score
+                if src not in groups_cnt:
+                    groups_cnt[src] = score
+                else:
+                    groups_cnt[src] += score
 
-        # best group only
-        # best_src = res[0][0]
-        # best_grp = st.src_to_group(best_src)
-        # if best_grp not in groups_cnt:
-        #     groups_cnt[best_grp] = 1
-        # else:
-        #     groups_cnt[best_grp] += 1
+            # best group only
+            # best_src = res[0][0]
+            # best_grp = st.src_to_group(best_src)
+            # if best_grp not in groups_cnt:
+            #     groups_cnt[best_grp] = 1
+            # else:
+            #     groups_cnt[best_grp] += 1
 
-
-
-    sources = st.groups
-    values = []
-    for source in sources:
-        val = groups_cnt[source] if source in groups_cnt else 0
-        values.append(val)
-    bar_chart(sources, values,
-              xlabel='# of occurrences as top group (best fit)',
-              title='Groups vs. %d random %d-subsets' % (subs_count, subs_size))
+        sources = st.groups
+        values = []
+        for source in sources:
+            val = groups_cnt[source] if source in groups_cnt else 0
+            values.append(val)
+        bar_chart(sources, values,
+                  xlabel='# of occurrences as top group (best fit)',
+                  title='Groups vs. %d random %d-subsets' % (subs_count, subs_size))
 
 
     # Chisquare
