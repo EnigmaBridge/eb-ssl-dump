@@ -48,7 +48,7 @@ def load_x509(data, backend=None):
 #
 # Arguments
 #
-parser = argparse.ArgumentParser(description='SSL dump')
+parser = argparse.ArgumentParser(description='SSL certificates dump from domain names')
 parser.add_argument('-t', '--threads', dest='threads', type=int, default=None,
                     help='Number of threads to use for cert download')
 parser.add_argument('-d', dest='domains', nargs=argparse.ZERO_OR_MORE,

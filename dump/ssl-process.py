@@ -100,7 +100,7 @@ def total_match(certs, st):
 
 
 def main():
-    parser = argparse.ArgumentParser(description='SSL dump')
+    parser = argparse.ArgumentParser(description='Key processing tool')
     parser.add_argument('-t', '--threads', dest='threads', type=int, default=None,
                         help='Number of threads to use for cert download')
     parser.add_argument('--debug', dest='debug', action='store_const', const=True,

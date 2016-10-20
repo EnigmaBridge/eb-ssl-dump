@@ -90,7 +90,7 @@ def load_last_page(dump, ns):
 
 
 def main():
-    parser = argparse.ArgumentParser(description='NS dump')
+    parser = argparse.ArgumentParser(description='NS dump - extract domains registered on particular name server')
     parser.add_argument('-p', dest='page', default=None)
     parser.add_argument('-w', dest='dump', default=None)
     parser.add_argument('ns', nargs=argparse.ONE_OR_MORE, default=[], help='ns')
