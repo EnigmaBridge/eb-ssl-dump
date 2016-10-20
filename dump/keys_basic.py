@@ -92,6 +92,40 @@ def generate_pubkey_mask():
                     yield generate_pubkey_mask_src(pmsb=pmsb, plsb=plsb, prem=prem, plen=plen)
 
 
+def project_mask(mask, mask_mask):
+    """
+    Selects only particular part of the mask
+    :param mask:
+    :param mask_mask: list of indices
+    :return:
+    """
+    res_mask = ''
+    for idx in mask_mask:
+        res_mask += mask[idx]
+    return res_mask
+
+
+def aggregate_mask(data, mask, mask_mask, init_res=0.0, merger=lambda x,y: x+y):
+    """
+    Computes aggregation over masks:
+    e.g., 000000|0|0|0 -> SUM where mask starts with 00000
+    :param data: mask -> value
+    :param mask:
+    :param mask_mask: list of indices
+    :return:
+    """
+    res = init_res
+    proj_mask = project_mask(mask, mask_mask)
+    if proj_mask == mask:
+        return data[mask]
+
+    for cur_mask in data:
+        if project_mask(cur_mask, mask_mask) == proj_mask:
+            res = merger(res, data[cur_mask])
+
+    return res
+
+
 def generate_pubkey_mask_indices():
     """
     Generate index of the mask - ordinal number in the ordering defined by a generator.
