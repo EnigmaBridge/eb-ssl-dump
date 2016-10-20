@@ -73,7 +73,7 @@ def print_res(res, st, error=None):
         if error is None:
             print(' - %s [%2.4f %%] %s [%s]' % (tup[1], tup[1]*(100.0/total), tup[0], st.src_to_group(tup[0])))
         else:
-            print(' - %s [%2.4f %%] std: %f %s [%s]' % (tup[1], tup[1]*(100.0/total), error[idx], tup[0], st.src_to_group(tup[0])))
+            print(' - %s [%2.4f %%] std: %s %s [%s]' % (tup[1], tup[1]*(100.0/total), error[idx], tup[0], st.src_to_group(tup[0])))
 
 
 def key_val_to_list(src_dict):
@@ -89,7 +89,7 @@ def val_if_none(val, default):
     return val if val is not None else default
 
 
-def comp_total_match(masks, st):
+def comp_total_match_dict(masks, st):
     src_total_match = {}
     for src in st.table_prob:
         src_total_match[src] = 1
@@ -97,8 +97,11 @@ def comp_total_match(masks, st):
         for idx, mask in enumerate(masks):
             val = val_if_none(st.table_prob[src][mask], 0)
             src_total_match[src] *= val
+    return src_total_match
 
-    # Total output
+
+def comp_total_match(masks, st):
+    src_total_match = comp_total_match_dict(masks, st)
     return key_val_to_list(src_total_match)
 
 
@@ -125,6 +128,21 @@ def plot_key_mask_dist(masks_db, st):
                     s=scale,
                     alpha=0.3)
         pass
+
+    # Distribution of pk
+    max_x = mask_map_last_x
+    cdf = [0] * max_x
+    df = [0] * max_x
+    for mask in masks_db:
+        proj_mask = keys_basic.project_mask(mask, [0,1,2,3,4,5])
+        proj_idx = mask_map_x[proj_mask]
+        df[proj_idx] += 1
+    for i in range(0, max_x):
+        cdf[i] = (cdf[i-1] if i > 0 else 0) + df[i]
+
+    cdf_scale = float(mask_map_last_y)/cdf[max_x-1]
+    cdf = [x*cdf_scale for x in cdf]
+    plt.plot(range(0, mask_map_last_x), cdf, 'bo', range(0, mask_map_last_x), cdf, 'k')
 
     plt.scatter(mask_map_last_x, mask_map_last_y, c='red', s=scale, alpha=0.3)
     plt.legend()
@@ -312,19 +330,21 @@ def main():
 
     # Total key matching
     print('Fit for all keys in one distribution:')
-    res = comp_total_match(masks_db, st)
+    total_weights = src_total_match = comp_total_match_dict(masks_db, st)
+    res = key_val_to_list(src_total_match)
     print_res(res, st)
     res = st.res_src_to_group(res)
-    # bar_chart(res=res, title='Fit for all keys')
+    bar_chart(res=res, title='Fit for all keys')
 
     # Avg + mean
     print('Avg + mean:')
-    src_total_match = {}
+    src_total_match = {}  # source -> [p1, p2, p3, p4, ..., p_keynum]
     for src in st.table_prob:
         src_total_match[src] = []
         for idx, mask in enumerate(masks_db):
-            val = val_if_none(st.table_prob[src][mask], 0)
-            src_total_match[src].append(val)
+            val = keys_basic.aggregate_mask(st.sources_masks_prob[src], mask)
+            #val = val_if_none(st.table_prob[src][mask], 0)
+            src_total_match[src].append(val * total_weights[src])
     res=[]
     devs=[]
     for src in st.sources:
@@ -335,7 +355,17 @@ def main():
 
     # Total output
     print_res(res, st, error=devs)
-    # bar_chart(res=res, error=devs, title='Avg for all keys + error')
+    bar_chart(res=res, error=devs, title='Avg for all keys + error')
+
+    # PCA on the keys - groups
+    keys_grp_vec = []
+    for idx, mask in enumerate(masks_db):
+        keys_grp_vec.append([])
+        for src in st.sources:
+            keys_grp_vec[idx].append(0)
+        for src in st.sources:
+            grp = st.src_to_group(src)
+
 
     # Random subset
     if args.subs:
