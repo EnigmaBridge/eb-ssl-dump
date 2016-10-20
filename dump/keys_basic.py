@@ -85,8 +85,10 @@ def generate_pubkey_mask():
     2nd-7th most significant bit of modulus | 2nd least significant bit of modulus | modulus mod 3 | modulus_length_in_bits mod 2
     :return:
     """
-    for plen in range(0,2):
-        for prem in range(0,3):
+    # for plen in range(0,2):
+    #     for prem in range(1,3):
+    for prem in range(1,3):
+        for plen in range(0,2):
             for plsb in range(0,2):
                 for pmsb in range(0, 0x40):
                     yield generate_pubkey_mask_src(pmsb=pmsb, plsb=plsb, prem=prem, plen=plen)
