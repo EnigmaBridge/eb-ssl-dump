@@ -31,7 +31,9 @@ Group XIII:	Botan 1.11.29, cryptlib 3.4.3, Feitian JavaCOS A22, Feitian JavaCOS 
         self.sources_cn = {}
         self.table_prob = {}
         self.groups = []
+        self.groups_idx = {}
         self.sources = []
+        self.sources_idx = {}
         self.groups_sources_map = {}
         self.sources_groups_map = {}
 
@@ -41,6 +43,7 @@ Group XIII:	Botan 1.11.29, cryptlib 3.4.3, Feitian JavaCOS A22, Feitian JavaCOS 
         for line in gcand:
             parts = [x.strip() for x in line.split(':', 1)]
             grp = parts[0]
+            self.groups_idx[grp.lower()] = len(self.groups)
             self.groups.append(grp)
 
             sources = [x.strip() for x in parts[1].split(',')]
@@ -58,6 +61,7 @@ Group XIII:	Botan 1.11.29, cryptlib 3.4.3, Feitian JavaCOS A22, Feitian JavaCOS 
             for source in table:
                 self.sources_masks[source] = {}
                 self.sources_masks_prob[source] = {}
+                self.sources_idx[source] = len(self.sources)
                 self.sources.append(source)
 
                 count = 0
@@ -82,21 +86,22 @@ Group XIII:	Botan 1.11.29, cryptlib 3.4.3, Feitian JavaCOS A22, Feitian JavaCOS 
             # ...
 
             # Compute table
-            mask_gen = keys_basic.generate_pubkey_mask()
-            for mask in mask_gen:
-                self.table_prob[mask] = {}
-                for source in self.sources_masks_prob:
-                    self.table_prob[mask][source] = self.sources_masks_prob[source][mask]
+            for source in self.sources_masks_prob:
+                self.table_prob[source] = {}
+                for mask in keys_basic.generate_pubkey_mask():
+                    self.table_prob[source][mask] = self.sources_masks_prob[source][mask]
 
-            # Normalize table to one
+            # Normalize table to one - on the line
             mask_gen = keys_basic.generate_pubkey_mask()
             for mask in mask_gen:
-                total = sum(self.table_prob[mask].values())
+                total = 0.0
+                for source in self.sources_masks_prob:
+                    total += self.sources_masks_prob[source][mask]
                 for source in self.sources_masks_prob:
                     if total < 1e-250:
-                        self.table_prob[mask][source] = None
+                        self.table_prob[source][mask] = None
                     else:
-                        self.table_prob[mask][source] *= (1.0/total)
+                        self.table_prob[source][mask] *= (1.0/total)
         pass
 
     def src_to_group(self, src):
@@ -104,6 +109,49 @@ Group XIII:	Botan 1.11.29, cryptlib 3.4.3, Feitian JavaCOS A22, Feitian JavaCOS 
 
     def group_to_src(self, grp):
         return self.group_to_src(grp)[0]
+
+    def get_group_idx(self, group):
+        return self.groups_idx[group.lower()]
+
+    def get_source_idx(self, src):
+        return self.sources_idx[src]
+
+    def data_src_to_group(self, src_data, merger=lambda x,y: x+y):
+        """
+        Projects a dictionary src -> data to groups -> data
+        :param src_data:
+        :return:
+        """
+        res = {}
+        for src in src_data:
+            grp = self.src_to_group(src)
+            val = src_data[src]
+
+            if grp not in res:
+                res[grp] = val
+                continue
+
+            res[grp] = merger(res[grp], val)
+        return res
+
+    def res_src_to_group(self, res, merger=lambda x,y: x+y):
+        """
+        Projects an array res [src, data] to [group, data]
+        :param res:
+        :param merger:
+        :return:
+        """
+        out_res = []
+        for grp in self.groups:
+            out_res.append((grp, None))
+        for src, data in res:
+            grp = self.src_to_group(src)
+            idx = self.get_group_idx(grp)
+            if out_res[idx][1] is None:
+                out_res[idx] = (grp, data)
+                continue
+            out_res[idx] = (grp, merger(out_res[idx][1], data))
+        return out_res
 
     def match_keys(self, keys):
 

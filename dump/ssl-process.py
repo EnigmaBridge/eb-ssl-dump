@@ -62,41 +62,88 @@ def random_subset(a, size):
     return list(res_elem)
 
 
-def print_res(res, st):
+def print_res(res, st, error=None):
     total = 0.0
     res = sorted(res, key=lambda x: x[1], reverse=True)
     for tup in res:
         total += tup[1]
-    for tup in res:
+    for idx,tup in enumerate(res):
         if tup[1] < 1e-200:
             continue
-        print(' - %s [%2.4f %%] %s [%s]' % (tup[1], tup[1]*(100.0/total), tup[0], st.src_to_group(tup[0])))
+        if error is None:
+            print(' - %s [%2.4f %%] %s [%s]' % (tup[1], tup[1]*(100.0/total), tup[0], st.src_to_group(tup[0])))
+        else:
+            print(' - %s [%2.4f %%] std: %f %s [%s]' % (tup[1], tup[1]*(100.0/total), error[idx], tup[0], st.src_to_group(tup[0])))
 
 
-def comp_total_match(certs, st):
-    src_total_match = {}
-    for idx,mask in enumerate(certs):
-        for src in st.table_prob[mask]:
-            val = st.table_prob[mask][src]
-            if val is None:
-                val = 0
-
-            if src not in src_total_match:
-                src_total_match[src] = 1
-
-            src_total_match[src] *= val
-
-    # Total output
+def key_val_to_list(src_dict):
     res = []
-    for src in src_total_match:
-        val = src_total_match[src]
+    for src in src_dict:
+        val = src_dict[src]
         res.append((src, val))
     res = sorted(res, key=lambda x: x[1], reverse=True)
     return res
 
 
+def val_if_none(val, default):
+    return val if val is not None else default
+
+
+def comp_total_match(masks, st):
+    src_total_match = {}
+    for src in st.table_prob:
+        src_total_match[src] = 1
+
+        for idx, mask in enumerate(masks):
+            val = val_if_none(st.table_prob[src][mask], 0)
+            src_total_match[src] *= val
+
+    # Total output
+    return key_val_to_list(src_total_match)
+
+
 def total_match(certs, st):
     print_res(comp_total_match(certs, st), st)
+
+
+def plot_key_mask_dist(masks_db, st):
+    mask_map, mask_max, mask_map_x, mask_map_y, mask_map_last_x, mask_map_last_y = keys_basic.generate_pubkey_mask_indices()
+    scale = float(mask_max/2.0)
+    for mask in masks_db:
+        mask_idx = mask_map[mask]
+        parts = [x.replace('|', '') for x in mask.split('|', 1)]
+
+        # y = 0
+        # x = mask_idx
+
+        # y = (mask_idx >> 5) & 0x1f
+        # x = mask_idx & 0x1f
+
+        x = mask_map_x[parts[0]]
+        y = mask_map_y[parts[1]]
+        plt.scatter(x, y,
+                    s=scale,
+                    alpha=0.3)
+        pass
+
+    plt.scatter(mask_map_last_x, mask_map_last_y, c='red', s=scale, alpha=0.3)
+    plt.legend()
+    plt.grid(True)
+    plt.show()
+
+
+def bar_chart(sources=None, values=None, res=None, error=None, xlabel=None, title=None):
+    if res is not None:
+        sources = [x[0] for x in res]
+        values = [x[1] for x in res]
+
+    plt.rcdefaults()
+    y_pos = np.arange(len(sources))
+    plt.barh(y_pos, values, align='center', xerr=error, alpha=0.4)
+    plt.yticks(y_pos, sources)
+    plt.xlabel(xlabel)
+    plt.title(title)
+    plt.show()
 
 
 def main():
@@ -107,10 +154,12 @@ def main():
                         help='enables debug mode')
     parser.add_argument('--verbose', dest='verbose', action='store_const', const=True,
                         help='enables verbose mode')
+
     parser.add_argument('--dump-json', dest='dump_json', action='store_const', const=True,
                         help='dumps JSON of the filtered certificates')
     parser.add_argument('--dump-cert', dest='dump_cert', action='store_const', const=True,
                         help='dumps PEM of the filtered certificates')
+
     parser.add_argument('-f', '--filter-org', dest='filter_org',
                         help='Filter out certificates issued with given organization - regex')
 
@@ -121,6 +170,9 @@ def main():
                         help='File with certificates (PEM)')
 
     parser.add_argument('--ossl', dest='ossl', type=int, default=None, help='OpenSSL generator')
+
+    parser.add_argument('--key-dist', dest='plot_key_dist', action='store_const', const=True,
+                        help='Plots key mask distribution')
 
     parser.add_argument('files', nargs=argparse.ZERO_OR_MORE, default=[],
                         help='file with ssl-dump json output')
@@ -246,14 +298,51 @@ def main():
         print('Key %02d, mask: %s' % (idx, mask))
 
         res = []
-        for src in st.table_prob[mask]:
-            val = st.table_prob[mask][src]
+        for src in st.table_prob:
+            val = st.table_prob[src][mask]
             res.append((src, val if val is not None else 0))
         print_res(res, st)
 
     # Total key matching
     print('Fit for all keys in one distribution:')
-    total_match(masks_db, st)
+    res = comp_total_match(masks_db, st)
+    print_res(res, st)
+    res = st.res_src_to_group(res)
+    bar_chart(res=res, title='Fit for all keys')
+
+    # Sum it
+    print('All keys sums:')
+    src_total_match = {}
+    for src in st.table_prob:
+        src_total_match[src] = 0
+        for idx, mask in enumerate(masks_db):
+            src_total_match[src] += val_if_none(st.table_prob[src][mask], 0)
+
+    # Total output
+    res = key_val_to_list(src_total_match)
+    print_res(res, st)
+    res = st.res_src_to_group(res)
+    bar_chart(res=res, title='Sum for all keys')
+
+    # Avg + mean
+    print('Avg + mean:')
+    src_total_match = {}
+    for src in st.table_prob:
+        src_total_match[src] = []
+        for idx, mask in enumerate(masks_db):
+            val = val_if_none(st.table_prob[src][mask], 0)
+            src_total_match[src].append(val)
+    res=[]
+    devs=[]
+    for src in st.sources:
+        m = np.mean(src_total_match[src])
+        s = np.std(src_total_match[src])
+        res.append((src, m))
+        devs.append(s)
+
+    # Total output
+    print_res(res, st, error=devs)
+    bar_chart(res=res, error=devs, title='Avg for all keys + error')
 
     # Random subset
     masks_db_tup = []
@@ -299,23 +388,16 @@ def main():
         # else:
         #     groups_cnt[best_grp] += 1
 
-    plt.rcdefaults()
+
 
     sources = st.groups
     values = []
     for source in sources:
         val = groups_cnt[source] if source in groups_cnt else 0
         values.append(val)
-    print sources
-    print values
-
-    y_pos = np.arange(len(sources))
-    plt.barh(y_pos, values, align='center', alpha=0.4)
-    plt.yticks(y_pos, sources)
-    plt.xlabel('# of occurences as top group (best fit)')
-    plt.title('Groups vs. %d random %d-subsets' % (subs_count, subs_size))
-
-    plt.show()
+    bar_chart(sources, values,
+              xlabel='# of occurrences as top group (best fit)',
+              title='Groups vs. %d random %d-subsets' % (subs_count, subs_size))
 
 
     # Chisquare
@@ -326,30 +408,8 @@ def main():
 
 
     # 2D Key plot
-    # return
-    scale = float(mask_max/2.0)
-    for mask in masks_db:
-        mask_idx = mask_map[mask]
-        parts = [x.replace('|', '') for x in mask.split('|', 1)]
-
-        y = 0
-        x = mask_idx
-
-        # y = (mask_idx >> 5) & 0x1f
-        # x = mask_idx & 0x1f
-
-        x = mask_map_x[parts[0]]
-        y = mask_map_y[parts[1]]
-        plt.scatter(x, y,
-                    s=scale,
-                    alpha=0.3)
-        pass
-
-    plt.scatter(mask_map_last_x, mask_map_last_y, c='red', s=scale, alpha=0.3)
-    plt.legend()
-    plt.grid(True)
-    plt.show()
-
+    if args.plot_key_dist:
+        plot_key_mask_dist(masks_db, st)
 
 
 
