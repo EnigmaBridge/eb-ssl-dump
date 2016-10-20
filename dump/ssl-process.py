@@ -317,20 +317,6 @@ def main():
     res = st.res_src_to_group(res)
     # bar_chart(res=res, title='Fit for all keys')
 
-    # Sum it
-    print('All keys sums:')
-    src_total_match = {}
-    for src in st.table_prob:
-        src_total_match[src] = 0
-        for idx, mask in enumerate(masks_db):
-            src_total_match[src] += val_if_none(st.table_prob[src][mask], 0)
-
-    # Total output
-    res = key_val_to_list(src_total_match)
-    print_res(res, st)
-    res = st.res_src_to_group(res)
-    # bar_chart(res=res, title='Sum for all keys')
-
     # Avg + mean
     print('Avg + mean:')
     src_total_match = {}
