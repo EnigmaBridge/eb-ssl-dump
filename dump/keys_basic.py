@@ -99,13 +99,15 @@ def project_mask(mask, mask_mask):
     :param mask_mask: list of indices
     :return:
     """
+    if mask_mask is None:
+        return mask
     res_mask = ''
     for idx in mask_mask:
         res_mask += mask[idx]
     return res_mask
 
 
-def aggregate_mask(data, mask, mask_mask, init_res=0.0, merger=lambda x,y: x+y):
+def aggregate_mask(data, mask, mask_mask=None, init_res=0.0, merger=lambda x,y: x+y):
     """
     Computes aggregation over masks:
     e.g., 000000|0|0|0 -> SUM where mask starts with 00000

@@ -119,6 +119,7 @@ Group XIII:	Botan 1.11.29, cryptlib 3.4.3, Feitian JavaCOS A22, Feitian JavaCOS 
     def data_src_to_group(self, src_data, merger=lambda x,y: x+y):
         """
         Projects a dictionary src -> data to groups -> data
+        Warning, size of groups is not the same, some equalization needs to be done
         :param src_data:
         :return:
         """
@@ -137,6 +138,7 @@ Group XIII:	Botan 1.11.29, cryptlib 3.4.3, Feitian JavaCOS A22, Feitian JavaCOS 
     def res_src_to_group(self, res, merger=lambda x,y: x+y):
         """
         Projects an array res [src, data] to [group, data]
+        Warning, size of groups is not the same, some equalization needs to be done
         :param res:
         :param merger:
         :return:
