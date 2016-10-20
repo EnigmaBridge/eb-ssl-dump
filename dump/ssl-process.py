@@ -47,7 +47,7 @@ from numpy.random import rand
 import random
 import numpy as np
 import math
-from sklearn.decomposition import IncrementalPCA, PCA
+from sklearn.decomposition import IncrementalPCA, PCA, SparsePCA, KernelPCA
 
 
 def random_subset(a, size):
@@ -382,9 +382,9 @@ def main():
             keys_grp_vec[idx][st.get_group_idx(grp)] += prob
 
     X = np.array(keys_grp_vec)
-    ipca = PCA(n_components=2)
-    ipca.fit(X)
-    X_transformed = ipca.transform(X)
+    pca = PCA(n_components=2)
+    pca.fit(X)
+    X_transformed = pca.transform(X)
 
     masks_src_np = np.array(masks_src)
     plt.rcdefaults()
@@ -392,7 +392,7 @@ def main():
     for src_id in range(0, last_src_id):
         plt.scatter(X_transformed[masks_src_np == src_id, 0],
                     X_transformed[masks_src_np == src_id, 1],
-                    label=src_names[src_id], color=colors[src_id])
+                    label=src_names[src_id], color=colors[src_id], alpha=0.25, marker=',')
     plt.legend(loc="best", shadow=False, scatterpoints=1)
     plt.show()
 
@@ -400,22 +400,51 @@ def main():
     if args.subs:
         masks_db_tup = []
         for idx,mask in enumerate(masks_db):
-            masks_db_tup.append((idx,mask))
+            masks_db_tup.append((idx, mask, masks_src[idx]))
 
         # Many random subsets, top groups
         subs_size = args.subs_k
         subs_count = args.subs_n
         groups_cnt = {}
+        subs_data = []
+        subs_data_mark = []
+        dsrc_num = last_src_id+1
         for i in range(0, subs_count):
             masks = random_subset(masks_db_tup, subs_size)
-            ids = [x[0] for x in masks]
-            ids.sort()
-
-            res = comp_total_match([x[1] for x in masks], st)
+            src_total_match = comp_total_match_dict([x[1] for x in masks], st)
+            res = key_val_to_list(src_total_match)
 
             total = 0.0
             for tup in res:
                 total += tup[1]
+
+            tmp_data = []
+            for idx, tmp_src in enumerate(st.sources):
+                val = src_total_match[tmp_src]
+                val = long(math.floor(val*(1000.0/total)))
+                tmp_data.append(val)
+            subs_data.append(tmp_data)
+
+            subs_dsources = {}
+            max_dsrc = (0,0)
+            for dsrc in [x[2] for x in masks]:
+                if dsrc not in subs_dsources:
+                    subs_dsources[dsrc] = 0
+                subs_dsources[dsrc] += 1
+            print subs_dsources
+
+            for dsrc in subs_dsources:
+                if subs_dsources[dsrc] > max_dsrc[1]:
+                    max_dsrc = (dsrc, subs_dsources[dsrc])
+            tmp_mark = max_dsrc[0]
+
+            if max_dsrc[1] == subs_size:
+                tmp_mark = max_dsrc[0]
+            else:
+                tmp_mark = last_src_id
+
+            subs_data_mark.append(tmp_mark)
+
             for tup in res:
                 src = tup[0]
                 score = long(math.floor(tup[1]*(1000.0/total)))
@@ -441,6 +470,8 @@ def main():
             # else:
             #     groups_cnt[best_grp] += 1
 
+        print('Combinations: (N, k)=(%d, %d) = %d' % (subs_count, subs_size, scipy.misc.comb(subs_count, subs_size)))
+
         sources = st.groups
         values = []
         for source in sources:
@@ -449,6 +480,28 @@ def main():
         bar_chart(sources, values,
                   xlabel='# of occurrences as top group (best fit)',
                   title='Groups vs. %d random %d-subsets' % (subs_count, subs_size))
+
+        # PCA stuff
+        X = np.array(subs_data)
+        pca = PCA(n_components=2)
+        pca.fit(X)
+        X_transformed = pca.transform(X)
+        subs_data_mark = np.array(subs_data_mark)
+
+        colors = ['blue', 'red', 'green']
+
+        plt.rcdefaults()
+        for src_id in range(0, dsrc_num):
+            plt.scatter(X_transformed[subs_data_mark == src_id, 0],
+                        X_transformed[subs_data_mark == src_id, 1],
+                        color=colors[src_id], alpha=0.5 if src_id < dsrc_num-1 else 0.2)
+        plt.legend(loc="best", shadow=False, scatterpoints=1)
+
+        # plt.scatter([x[0] for x in X_transformed],
+        #             [x[1] for x in X_transformed],
+        #             alpha=0.5)
+
+        plt.show()
 
 
     # Chisquare
