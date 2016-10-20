@@ -139,7 +139,7 @@ Group XIII:	Botan 1.11.29, cryptlib 3.4.3, Feitian JavaCOS A22, Feitian JavaCOS 
 
         if equalize:
             for grp in res:
-                res[grp] /= self.get_group_size(grp)
+                res[grp] /= float(self.get_group_size(grp))
 
         return res
 
@@ -165,8 +165,8 @@ Group XIII:	Botan 1.11.29, cryptlib 3.4.3, Feitian JavaCOS A22, Feitian JavaCOS 
         if equalize:
             for grp in self.groups:
                 idx = self.get_group_idx(grp)
-                out_res[idx] = (grp, out_res[idx][1] / self.get_group_size(grp))
-        
+                out_res[idx] = (grp, out_res[idx][1] / float(self.get_group_size(grp)))
+
         return out_res
 
     def match_keys(self, keys):
