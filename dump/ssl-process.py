@@ -47,6 +47,7 @@ from numpy.random import rand
 import random
 import numpy as np
 import math
+from sklearn.decomposition import IncrementalPCA, PCA
 
 
 def random_subset(a, size):
@@ -124,7 +125,7 @@ def plot_key_mask_dist(masks_db, st):
 
         x = mask_map_x[parts[0]]
         y = mask_map_y[parts[1]]
-        plt.scatter(x, y,
+        plt.scatter(x, y, marker='s',
                     s=scale,
                     alpha=0.3)
         pass
@@ -204,12 +205,18 @@ def main():
 
     args = parser.parse_args()
 
+    last_src_id = 0
+    src_names = []
     masks_db = []
+    masks_src = []
     cert_db = []
     keys_db = []
 
     # Input = ssl-dump output
     if len(args.files) > 0:
+        # Cert Organization Filtering
+        re_org = None if args.filter_org is None else re.compile(args.filter_org, re.IGNORECASE)
+        # Process files
         for fl in args.files:
             with open(fl, mode='r') as fh:
                 data = fh.read()
@@ -224,25 +231,20 @@ def main():
                     data = match.group(1)
 
                 json_data = json.loads(data)
-                for rec in json_data:
-                    cert_db.append(rec)
+                for cert in json_data:
+                    org = cert['org']
+                    if org is None:
+                        org = ''
+                    if re_org is not None and re_org.match(org) is None:
+                        if args.verbose:
+                            print('Organization filtered out %s' % org)
+                        continue
 
-        # Filtering
-        cert_db_old = cert_db
-        cert_db = []
-        re_org = None if args.filter_org is None else re.compile(args.filter_org, re.IGNORECASE)
-
-        for cert in cert_db_old:
-            org = cert['org']
-            if org is None:
-                org = ''
-
-            if re_org is not None and re_org.match(org) is None:
-                if args.verbose:
-                    print('Organization filtered out %s' % org)
-                continue
-            cert_db.append(cert)
-            masks_db.append(cert['pubkey']['mask'])
+                    cert_db.append(cert)
+                    masks_db.append(cert['pubkey']['mask'])
+                    masks_src.append(last_src_id)
+            src_names.append(fl)
+            last_src_id += 1
 
         if args.verbose:
             print('Certificate database size %d' % len(cert_db))
@@ -263,6 +265,7 @@ def main():
                 for match in re.finditer(r'-----BEGIN PUBLIC KEY-----(.+?)-----END PUBLIC KEY-----', data, re.MULTILINE | re.DOTALL):
                     key = match.group(0)
                     keys.append(key)
+                print('File %s keys num: %d' % (pubf, len(keys)))
 
                 # pubkey -> mask
                 for key in keys:
@@ -270,6 +273,9 @@ def main():
                     mask = keys_basic.compute_key_mask(pub.public_numbers().n)
                     keys_db.append(pub)
                     masks_db.append(mask)
+                    masks_src.append(last_src_id)
+            src_names.append(pubf)
+            last_src_id += 1
 
     if args.certs is not None:
         for certf in args.certs:
@@ -287,6 +293,9 @@ def main():
                     mask = keys_basic.compute_key_mask(pub.public_numbers().n)
                     keys_db.append(pub)
                     masks_db.append(mask)
+                    masks_src.append(last_src_id)
+            src_names.append(certf)
+            last_src_id += 1
 
     if args.ossl is not None:
         for i in range(0, args.ossl):
@@ -299,6 +308,9 @@ def main():
             mask = keys_basic.compute_key_mask(priv.public_key().public_numbers().n)
             keys_db.append(priv.public_key())
             masks_db.append(mask)
+            masks_src.append(last_src_id)
+        src_names.append('ossl-%d' % args.ossl)
+        last_src_id+=1
 
     # Load statistics
     st = key_stats.KeyStats()
@@ -334,7 +346,7 @@ def main():
     res = key_val_to_list(src_total_match)
     print_res(res, st)
     res = st.res_src_to_group(res)
-    bar_chart(res=res, title='Fit for all keys')
+    # bar_chart(res=res, title='Fit for all keys')
 
     # Avg + mean
     print('Avg + mean:')
@@ -342,6 +354,7 @@ def main():
     for src in st.table_prob:
         src_total_match[src] = []
         for idx, mask in enumerate(masks_db):
+            # if all keys
             val = keys_basic.aggregate_mask(st.sources_masks_prob[src], mask)
             #val = val_if_none(st.table_prob[src][mask], 0)
             src_total_match[src].append(val * total_weights[src])
@@ -355,17 +368,33 @@ def main():
 
     # Total output
     print_res(res, st, error=devs)
-    bar_chart(res=res, error=devs, title='Avg for all keys + error')
+    # bar_chart(res=res, error=devs, title='Avg for all keys + error')
 
     # PCA on the keys - groups
     keys_grp_vec = []
     for idx, mask in enumerate(masks_db):
         keys_grp_vec.append([])
-        for src in st.sources:
+        for src in st.groups:
             keys_grp_vec[idx].append(0)
-        for src in st.sources:
+        for idxs,src in enumerate(st.sources):
             grp = st.src_to_group(src)
+            prob = st.table_prob[src][mask]
+            keys_grp_vec[idx][st.get_group_idx(grp)] += prob
 
+    X = np.array(keys_grp_vec)
+    ipca = PCA(n_components=2)
+    ipca.fit(X)
+    X_transformed = ipca.transform(X)
+
+    masks_src_np = np.array(masks_src)
+    plt.rcdefaults()
+    colors = matplotlib.cm.rainbow(np.linspace(0, 1, last_src_id))
+    for src_id in range(0, last_src_id):
+        plt.scatter(X_transformed[masks_src_np == src_id, 0],
+                    X_transformed[masks_src_np == src_id, 1],
+                    label=src_names[src_id], color=colors[src_id])
+    plt.legend(loc="best", shadow=False, scatterpoints=1)
+    plt.show()
 
     # Random subset
     if args.subs:
