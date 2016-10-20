@@ -32,6 +32,7 @@ Group XIII:	Botan 1.11.29, cryptlib 3.4.3, Feitian JavaCOS A22, Feitian JavaCOS 
         self.table_prob = {}
         self.groups = []
         self.groups_idx = {}
+        self.groups_sizes = {}
         self.sources = []
         self.sources_idx = {}
         self.groups_sources_map = {}
@@ -50,7 +51,7 @@ Group XIII:	Botan 1.11.29, cryptlib 3.4.3, Feitian JavaCOS A22, Feitian JavaCOS 
             self.groups_sources_map[grp] = sources
             for source in sources:
                 self.sources_groups_map[source.lower()] = grp
-            pass
+            self.groups_sizes[grp.lower()] = len(sources)
 
         # Load distributions
         with open(fname, mode='r') as fh:
@@ -116,10 +117,12 @@ Group XIII:	Botan 1.11.29, cryptlib 3.4.3, Feitian JavaCOS A22, Feitian JavaCOS 
     def get_source_idx(self, src):
         return self.sources_idx[src]
 
-    def data_src_to_group(self, src_data, merger=lambda x,y: x+y):
+    def get_group_size(self, group):
+        return self.groups_sizes[group.lower()]
+
+    def data_src_to_group(self, src_data, merger=lambda x,y: x+y, equalize=True):
         """
         Projects a dictionary src -> data to groups -> data
-        Warning, size of groups is not the same, some equalization needs to be done
         :param src_data:
         :return:
         """
@@ -133,9 +136,14 @@ Group XIII:	Botan 1.11.29, cryptlib 3.4.3, Feitian JavaCOS A22, Feitian JavaCOS 
                 continue
 
             res[grp] = merger(res[grp], val)
+
+        if equalize:
+            for grp in res:
+                res[grp] /= self.get_group_size(grp)
+
         return res
 
-    def res_src_to_group(self, res, merger=lambda x,y: x+y):
+    def res_src_to_group(self, res, merger=lambda x,y: x+y, equalize=True):
         """
         Projects an array res [src, data] to [group, data]
         Warning, size of groups is not the same, some equalization needs to be done
@@ -153,6 +161,12 @@ Group XIII:	Botan 1.11.29, cryptlib 3.4.3, Feitian JavaCOS A22, Feitian JavaCOS 
                 out_res[idx] = (grp, data)
                 continue
             out_res[idx] = (grp, merger(out_res[idx][1], data))
+
+        if equalize:
+            for grp in self.groups:
+                idx = self.get_group_idx(grp)
+                out_res[idx] = (grp, out_res[idx][1] / self.get_group_size(grp))
+        
         return out_res
 
     def match_keys(self, keys):
