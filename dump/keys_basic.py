@@ -81,7 +81,10 @@ def generate_pubkey_mask_src(pmsb, plsb, prem, plen):
 
 def generate_pubkey_mask():
     """
-    Generates public key mask space
+    Generates public key mask space, defines ordering on the mask.
+    Is crucial to preserve the ordering among invocations of the script.
+    Producing results with different ordering on masks can cause troubles an inconsistencies.
+
     2nd-7th most significant bit of modulus | 2nd least significant bit of modulus | modulus mod 3 | modulus_length_in_bits mod 2
     :return:
     """
