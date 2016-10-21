@@ -319,6 +319,9 @@ def main():
         print('Source stats: ')
         for src in st.sources_cn:
             print(' %30s: %08d' % (src, st.sources_cn[src]))
+        print('Group stats:')
+        for grp in st.groups:
+            print(' %30s: %02d' % (grp, st.get_group_size(grp)))
 
     # mask indices
     mask_map, mask_max, mask_map_x, mask_map_y, mask_map_last_x, mask_map_last_y = keys_basic.generate_pubkey_mask_indices()
@@ -431,7 +434,6 @@ def main():
                 if dsrc not in subs_dsources:
                     subs_dsources[dsrc] = 0
                 subs_dsources[dsrc] += 1
-            print subs_dsources
 
             for dsrc in subs_dsources:
                 if subs_dsources[dsrc] > max_dsrc[1]:
@@ -488,7 +490,7 @@ def main():
         X_transformed = pca.transform(X)
         subs_data_mark = np.array(subs_data_mark)
 
-        colors = ['blue', 'red', 'green']
+        colors = ['blue', 'red', 'green', 'gray', 'yellow']
 
         plt.rcdefaults()
         for src_id in range(0, dsrc_num):
