@@ -422,6 +422,7 @@ def main():
             for tup in res:
                 total += tup[1]
 
+            # data vectors for PCA
             tmp_data = []
             for idx, tmp_src in enumerate(st.sources):
                 val = src_total_match[tmp_src]
@@ -496,6 +497,8 @@ def main():
         X_transformed = pca.transform(X)
         subs_data_mark = np.array(subs_data_mark)
         print('PCA input data shape %d x %d' % (len(subs_data), len(subs_data[0])))
+        print('Sources: ')
+        print(st.sources)
         print('PCA mean: %s, components: ' % pca.mean_)
         print(pca.components_)
 
