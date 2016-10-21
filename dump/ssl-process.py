@@ -114,11 +114,7 @@ def plot_key_mask_dist(masks_db, st):
     mask_map, mask_max, mask_map_x, mask_map_y, mask_map_last_x, mask_map_last_y = keys_basic.generate_pubkey_mask_indices()
     scale = float(mask_max/2.0)
     for mask in masks_db:
-        mask_idx = mask_map[mask]
         parts = [x.replace('|', '') for x in mask.split('|', 1)]
-
-        # y = 0
-        # x = mask_idx
 
         # y = (mask_idx >> 5) & 0x1f
         # x = mask_idx & 0x1f
