@@ -391,6 +391,8 @@ def main():
     pca = PCA(n_components=2)
     pca.fit(X)
     X_transformed = pca.transform(X)
+    print('PCA mean: %s, components: ' % pca.mean_)
+    print(pca.components_)
 
     masks_src_np = np.array(masks_src)
     plt.rcdefaults()
@@ -497,6 +499,9 @@ def main():
         pca.fit(X)
         X_transformed = pca.transform(X)
         subs_data_mark = np.array(subs_data_mark)
+        print('PCA input data shape %d x %d' % (len(subs_data), len(subs_data[0])))
+        print('PCA mean: %s, components: ' % pca.mean_)
+        print(pca.components_)
 
         colors = ['blue', 'red', 'green', 'gray', 'yellow']
 
