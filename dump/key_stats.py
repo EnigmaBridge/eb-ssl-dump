@@ -202,9 +202,6 @@ Group XIII:	Botan 1.11.29, cryptlib 3.4.3, Feitian JavaCOS A22, Feitian JavaCOS 
 
         return out_res
 
-    def match_keys(self, keys):
-
-        pass
 
 
 
