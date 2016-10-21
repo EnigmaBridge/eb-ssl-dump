@@ -50,17 +50,21 @@ import math
 from sklearn.decomposition import IncrementalPCA, PCA, SparsePCA, KernelPCA
 
 
-def random_subset(a, size):
+def random_subset_idx(a, count):
     tmp = range(0, len(a))
     res = set([])
-    while len(res) < size:
+    while len(res) < count:
         e = random.choice(tmp)
         res.add(e)
 
     res_elem = []
     for i in res:
         res_elem.append(a[i])
-    return list(res_elem)
+    return list(res_elem), res
+
+
+def random_subset(a, count):
+    return random_subset_idx(a, count)[0]
 
 
 def print_res(res, st, error=None):
