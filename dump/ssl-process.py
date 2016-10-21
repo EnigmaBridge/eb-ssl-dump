@@ -48,6 +48,7 @@ import random
 import numpy as np
 import math
 from sklearn.decomposition import IncrementalPCA, PCA, SparsePCA, KernelPCA
+from matplotlib.backends.backend_pdf import PdfPages
 
 
 def random_subset_idx(a, count):
@@ -197,6 +198,13 @@ def main():
                         help='Size of the subset')
     parser.add_argument('--subs-n', dest='subs_n', type=int, default=1000,
                         help='Number of subsets to sample')
+
+    parser.add_argument('--pca-src', dest='pca_src', action='store_const', const=True,
+                        help='Plot PCA sampled distribution vs collected one')
+    parser.add_argument('--pca-src-n', dest='pca_src_n', type=int, default=10000,
+                        help='Number of subsets to sample from source distributions')
+    parser.add_argument('--pca-src-k', dest='pca_src_k', type=int, default=3,
+                        help='Size of the subset from the source distribution')
 
     parser.add_argument('--key-dist', dest='plot_key_dist', action='store_const', const=True,
                         help='Plots key mask distribution')
@@ -507,23 +515,33 @@ def main():
         pca = PCA(n_components=2)
         pU, pS, pV = pca._fit(X)
         X_transformed = pca.transform(X)
-        subs_data_mark = np.array(subs_data_mark)
+        subs_data_mark_pca = np.array(subs_data_mark)
 
         print('Sources: ')
         print(st.sources)
 
         print('PCA input data shape %d x %d' % (len(subs_data), len(subs_data[0])))
-        print('Sources: ')
-        print(st.sources)
-        print('PCA mean: %s, components: ' % pca.mean_)
+        print('PCA mean: \n%s \nPCA components: \n' % pca.mean_)
         print(pca.components_)
+
+        print('PCA components x: ')
+        for x in pca.components_[0]:
+            print x
+        print('\nPCA components y: ')
+        for y in pca.components_[1]:
+            print y
+
+        # print('\nPCA U,S,V')
+        # print(pU)
+        # print(pS)
+        # print(pV)
 
         colors = ['blue', 'red', 'green', 'gray', 'yellow']
 
         plt.rcdefaults()
         for src_id in range(0, dsrc_num):
-            plt.scatter(X_transformed[subs_data_mark == src_id, 0],
-                        X_transformed[subs_data_mark == src_id, 1],
+            plt.scatter(X_transformed[subs_data_mark_pca == src_id, 0],
+                        X_transformed[subs_data_mark_pca == src_id, 1],
                         color=colors[src_id], alpha=0.5 if src_id < dsrc_num-1 else 0.2)
         plt.legend(loc="best", shadow=False, scatterpoints=1)
 
@@ -532,6 +550,83 @@ def main():
         #             alpha=0.5)
 
         plt.show()
+
+        # PCA against defined sources with known distributions?
+        # Creates "background distribution" we want to match to
+        if args.pca_src:
+            # Four axes, returned as a 2-d array
+            plt.rcdefaults()
+            f, axarr = plt.subplots(len(st.sources), 1)
+            src_k = args.pca_src_k
+            src_n = args.pca_src_n
+
+            # prepare PDF
+            ppdf = PdfPages('test.pdf') # todo-filenae-from-set
+
+            # compute for each source
+            src_mark_idx = len(subs_data_mark)
+            subs_data_src = subs_data
+            subs_data_mark_src = subs_data_mark
+            for src_idx, source in enumerate(st.sources):
+                print('Plotting PCA source %s %d/%d' % (source, src_idx+1, len(st.sources)))
+
+                # Extend subs_data_src with draws from the source distribution
+                for i in range(0, src_n):
+                    masks = []
+                    for tmpk in range(0, src_k):
+                        masks.append(st.sample_source_distrib(source))
+                    src_total_match = comp_total_match_dict(masks, st)
+                    res = key_val_to_list(src_total_match)
+
+                    total = 0.0
+                    for tup in res:
+                        total += tup[1]
+
+                    # data vectors for PCA
+                    tmp_data = []
+                    for idx, tmp_src in enumerate(st.sources):
+                        val = src_total_match[tmp_src]
+                        val = long(math.floor(val*(1000.0/total)))
+                        tmp_data.append(val)
+
+                    # PCA on groups.
+                    # if want PCA on sources, use subs_data.append(tmp_data)
+                    subs_data_src.append(tmp_data)
+                    subs_data_mark_src.append(src_mark_idx)
+
+                # PCA stuff
+                X = np.array(subs_data_src)
+                pca = PCA(n_components=2)
+                pU, pS, pV = pca._fit(X)
+                X_transformed = pca.transform(X)
+                subs_data_mark_pca = np.array(subs_data_mark_src)
+
+                colors = ['blue', 'red', 'green', 'gray', 'yellow']
+
+                # plot input sources
+                for src_id in range(0, dsrc_num):
+                    axarr[src_idx].scatter(X_transformed[subs_data_mark_pca == src_id, 0],
+                                           X_transformed[subs_data_mark_pca == src_id, 1],
+                                           color=colors[src_id], alpha=0.5 if src_id < dsrc_num-1 else 0.2)
+
+                # plot the source stuff
+                axarr[src_idx].scatter(X_transformed[subs_data_mark_pca == src_mark_idx, 0],
+                                       X_transformed[subs_data_mark_pca == src_mark_idx, 1],
+                                       color='gray', marker=',', alpha=0.1 )
+
+                axarr[src_idx].legend(loc="best", shadow=False, scatterpoints=1)
+                axarr[src_idx].set_title('Src [%s] input: %s' % (source, (', '.join(src_names))))
+                # plt.scatter([x[0] for x in X_transformed],
+                #             [x[1] for x in X_transformed],
+                #             alpha=0.5)
+
+            print('Finalizing PDF...')
+            plt.savefig(ppdf, format='pdf')
+            ppdf.close()
+            pass
+
+
+
 
 
     # Chisquare
