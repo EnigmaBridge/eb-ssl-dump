@@ -556,19 +556,23 @@ def main():
         if args.pca_src:
             # Four axes, returned as a 2-d array
             plt.rcdefaults()
-            f, axarr = plt.subplots(len(st.sources), 1)
+            #f, axarr = plt.subplots(len(st.sources), 1)
             src_k = args.pca_src_k
             src_n = args.pca_src_n
 
             # prepare PDF
             ppdf = PdfPages('test.pdf') # todo-filenae-from-set
+            sources_to_test = st.sources[20:25] + [x for x in st.sources if 'micro' in x.lower()]
 
             # compute for each source
             src_mark_idx = len(subs_data_mark)
             subs_data_src = subs_data
             subs_data_mark_src = subs_data_mark
-            for src_idx, source in enumerate(st.sources):
-                print('Plotting PCA source %s %d/%d' % (source, src_idx+1, len(st.sources)))
+            for src_idx, source in enumerate(sources_to_test):
+                # cur_plot = axarr[src_idx]
+                cur_plot = plt
+
+                print('Plotting PCA source %s %d/%d' % (source, src_idx+1, len(sources_to_test)))
 
                 # Extend subs_data_src with draws from the source distribution
                 for i in range(0, src_n):
@@ -605,23 +609,23 @@ def main():
 
                 # plot input sources
                 for src_id in range(0, dsrc_num):
-                    axarr[src_idx].scatter(X_transformed[subs_data_mark_pca == src_id, 0],
-                                           X_transformed[subs_data_mark_pca == src_id, 1],
-                                           color=colors[src_id], alpha=0.5 if src_id < dsrc_num-1 else 0.2)
+                    cur_plot.scatter(X_transformed[subs_data_mark_pca == src_id, 0],
+                                     X_transformed[subs_data_mark_pca == src_id, 1],
+                                     color=colors[src_id], alpha=0.5 if src_id < dsrc_num-1 else 0.2)
 
                 # plot the source stuff
-                axarr[src_idx].scatter(X_transformed[subs_data_mark_pca == src_mark_idx, 0],
-                                       X_transformed[subs_data_mark_pca == src_mark_idx, 1],
-                                       color='gray', marker=',', alpha=0.1 )
+                cur_plot.scatter(X_transformed[subs_data_mark_pca == src_mark_idx, 0],
+                                 X_transformed[subs_data_mark_pca == src_mark_idx, 1],
+                                 color='gray', marker='+', alpha=0.05)
 
-                axarr[src_idx].legend(loc="best", shadow=False, scatterpoints=1)
-                axarr[src_idx].set_title('Src [%s] input: %s' % (source, (', '.join(src_names))))
-                # plt.scatter([x[0] for x in X_transformed],
-                #             [x[1] for x in X_transformed],
-                #             alpha=0.5)
+                cur_plot.legend(loc="best", shadow=False, scatterpoints=1)
+                cur_plot.title('Src [%s] input: %s' % (source, (', '.join(src_names))))
+
+                cur_plot.savefig(ppdf, format='pdf')
+                cur_plot.clf()
 
             print('Finalizing PDF...')
-            plt.savefig(ppdf, format='pdf')
+            # plt.savefig(ppdf, format='pdf')
             ppdf.close()
             pass
 
