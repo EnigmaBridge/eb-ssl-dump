@@ -413,6 +413,8 @@ def main():
         subs_data = []
         subs_data_mark = []
         dsrc_num = last_src_id+1
+
+        # Take subs_count samples fro the input masks_db, evaluate it, prepare for PCA
         for i in range(0, subs_count):
             masks = random_subset(masks_db_tup, subs_size)
             src_total_match = comp_total_match_dict([x[1] for x in masks], st)
@@ -470,6 +472,12 @@ def main():
                     groups_cnt[src] = score
                 else:
                     groups_cnt[src] += score
+
+            # Equalize group sizes
+            for grp in st.groups:
+                grp = grp.lower()
+                if grp in groups_cnt:
+                    groups_cnt[grp] /= float(st.get_group_size(grp))
 
             # best group only
             # best_src = res[0][0]
