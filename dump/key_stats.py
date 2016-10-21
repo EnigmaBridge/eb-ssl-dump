@@ -151,7 +151,7 @@ Group XIII:	Botan 1.11.29, cryptlib 3.4.3, Feitian JavaCOS A22, Feitian JavaCOS 
         :param source:
         :return:
         """
-        return self.sources_distrib[source].rvs()
+        return self.masks[self.sources_distrib[source].rvs()]
 
     def data_src_to_group(self, src_data, merger=lambda x,y: x+y, equalize=True):
         """
