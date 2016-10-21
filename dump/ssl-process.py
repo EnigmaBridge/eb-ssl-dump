@@ -501,9 +501,13 @@ def main():
         # PCA stuff
         X = np.array(subs_data)
         pca = PCA(n_components=2)
-        pca.fit(X)
+        pU, pS, pV = pca._fit(X)
         X_transformed = pca.transform(X)
         subs_data_mark = np.array(subs_data_mark)
+
+        print('Sources: ')
+        print(st.sources)
+
         print('PCA input data shape %d x %d' % (len(subs_data), len(subs_data[0])))
         print('Sources: ')
         print(st.sources)
