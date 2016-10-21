@@ -1,6 +1,7 @@
 import json
 import os, sys
 import keys_basic
+from scipy import stats
 
 
 __author__ = 'dusanklinec'
@@ -28,6 +29,12 @@ Group XIII:	Botan 1.11.29, cryptlib 3.4.3, Feitian JavaCOS A22, Feitian JavaCOS 
         self.data = None
         self.sources_masks = {}
         self.sources_masks_prob = {}
+
+        # masks
+        self.masks = []
+        self.masks_idx = {}
+
+        # sources
         self.sources_cn = {}
         self.table_prob = {}
         self.groups = []
@@ -37,6 +44,9 @@ Group XIII:	Botan 1.11.29, cryptlib 3.4.3, Feitian JavaCOS A22, Feitian JavaCOS 
         self.sources_idx = {}
         self.groups_sources_map = {}
         self.sources_groups_map = {}
+
+        # Probability distribution functions for sources
+        self.sources_distrib = {}
 
     def load_tables(self, fname=CLASSIFICATION_TABLE_PATH):
         # Load source grouping
@@ -53,6 +63,12 @@ Group XIII:	Botan 1.11.29, cryptlib 3.4.3, Feitian JavaCOS A22, Feitian JavaCOS 
                 self.sources_groups_map[source.lower()] = grp
             self.groups_sizes[grp.lower()] = len(sources)
 
+        # Mask precomputation, ordering, mask -> index
+        self.masks = []
+        for midx, mask in enumerate(keys_basic.generate_pubkey_mask()):
+            self.masks_idx[mask] = len(self.masks)
+            self.masks.append(mask)
+
         # Load distributions
         with open(fname, mode='r') as fh:
             data = fh.read()
@@ -66,8 +82,7 @@ Group XIII:	Botan 1.11.29, cryptlib 3.4.3, Feitian JavaCOS A22, Feitian JavaCOS 
                 self.sources.append(source)
 
                 count = 0
-                mask_gen = keys_basic.generate_pubkey_mask()
-                for mask in mask_gen:
+                for mask in keys_basic.generate_pubkey_mask():
                     if mask not in table[source]:
                         self.sources_masks[source][mask] = 0
                     else:
@@ -76,12 +91,19 @@ Group XIII:	Botan 1.11.29, cryptlib 3.4.3, Feitian JavaCOS A22, Feitian JavaCOS 
 
                 self.sources_cn[source] = count
 
-                mask_gen = keys_basic.generate_pubkey_mask()
-                for mask in mask_gen:
+                xk, pk = [], []
+                for mask in keys_basic.generate_pubkey_mask():
                     if mask not in table[source]:
                         self.sources_masks_prob[source][mask] = 0.0
                     else:
                         self.sources_masks_prob[source][mask] = float(table[source][mask]) / count
+                    p = self.sources_masks_prob[source][mask]
+                    if p > 0:
+                        xk.append(self.get_mask_idx(mask))
+                        pk.append(p)
+                if sum(pk) > 1.1:
+                    raise ValueError('Fishy probability distribution %s' % sum(pk))
+                self.sources_distrib[source] = stats.rv_discrete(name=source, values=(xk, pk))
 
             # Merge very similar sources to one category
             # ...
@@ -119,6 +141,17 @@ Group XIII:	Botan 1.11.29, cryptlib 3.4.3, Feitian JavaCOS A22, Feitian JavaCOS 
 
     def get_group_size(self, group):
         return self.groups_sizes[group.lower()]
+
+    def get_mask_idx(self, mask):
+        return self.masks_idx[mask]
+
+    def sample_source_distrib(self, source):
+        """
+        https://docs.scipy.org/doc/scipy/reference/generated/scipy.stats.rv_discrete.html#scipy.stats.rv_discrete
+        :param source:
+        :return:
+        """
+        return self.sources_distrib[source].rvs()
 
     def data_src_to_group(self, src_data, merger=lambda x,y: x+y, equalize=True):
         """
