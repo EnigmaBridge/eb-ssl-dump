@@ -165,6 +165,7 @@ def bar_chart(sources=None, values=None, res=None, error=None, xlabel=None, titl
     plt.show()
 
 
+# Main - argument parsing + processing
 def main():
     parser = argparse.ArgumentParser(description='Key processing tool')
     parser.add_argument('-t', '--threads', dest='threads', type=int, default=None,
@@ -277,6 +278,7 @@ def main():
             src_names.append(pubf)
             last_src_id += 1
 
+    # extract public key from certificate
     if args.certs is not None:
         for certf in args.certs:
             with open(certf, mode='r') as fh:
@@ -297,6 +299,7 @@ def main():
             src_names.append(certf)
             last_src_id += 1
 
+    # generate openssl keys on the fly
     if args.ossl is not None:
         for i in range(0, args.ossl):
             print('Generating RSA1024 key %03d' % i)
@@ -426,7 +429,12 @@ def main():
                 val = src_total_match[tmp_src]
                 val = long(math.floor(val*(1000.0/total)))
                 tmp_data.append(val)
+
+            # PCA on groups.
+            # if want PCA on sources, use subs_data.append(tmp_data)
             subs_data.append(tmp_data)
+            # res_grp_val = st.res_src_to_group(zip(st.sources, tmp_data))
+            # subs_data.append([x[1] for x in res_grp_val])
 
             subs_dsources = {}
             max_dsrc = (0,0)
