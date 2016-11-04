@@ -17,7 +17,7 @@ def get_file_list(input):
             if os.path.isfile(c_input):
                 file_list.append(c_input)
             else:
-                file_list += [f for f in listdir(c_input) if isfile(join(c_input, f))]
+                file_list += [os.path.join(c_input, f) for f in listdir(c_input) if isfile(join(c_input, f))]
 
     return file_list
 
