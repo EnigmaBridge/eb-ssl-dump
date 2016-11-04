@@ -55,7 +55,7 @@ def main():
             if not os.path.exists(cur_file):
                 raise Exception('File %s not found' % cur_file)
 
-            logger.info(' - Processing file [%02d/%02d]: %s' % (idx+1, len(all_files), cur_file))
+            sys.stderr.write(' - Processing file [%02d/%02d]: %s\n' % (idx+1, len(all_files), cur_file))
 
             # Read the input file, line by line, process
             with open(cur_file, 'r') as fr:
