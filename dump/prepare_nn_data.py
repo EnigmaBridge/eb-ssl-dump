@@ -53,7 +53,7 @@ def main():
         for idx, cur_file in enumerate(all_files):
             # File existence check
             if not os.path.exists(cur_file):
-                raise('File %s not found' % cur_file)
+                raise Exception('File %s not found' % cur_file)
 
             logger.info(' - Processing file [%02d/%02d]: %s' % (idx+1, len(all_files), cur_file))
 
