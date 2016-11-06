@@ -183,6 +183,8 @@ def main():
 
     parser.add_argument('-f', '--filter-org', dest='filter_org',
                         help='Filter out certificates issued with given organization - regex')
+    parser.add_argument('--filter-domain', dest='filter_domain',
+                        help='Filter out certificates issued for the given domain - regex')
 
     parser.add_argument('--pubs', dest='pubs', nargs=argparse.ZERO_OR_MORE,
                         help='File with public keys (PEM)')
@@ -225,6 +227,9 @@ def main():
     if len(args.files) > 0:
         # Cert Organization Filtering
         re_org = None if args.filter_org is None else re.compile(args.filter_org, re.IGNORECASE)
+        # Domain filtering
+        re_dom = None if args.filter_domain is None else re.compile(args.filter_domain, re.IGNORECASE)
+
         # Process files
         for fl in args.files:
             with open(fl, mode='r') as fh:
@@ -248,6 +253,14 @@ def main():
                         if args.verbose:
                             print('Organization filtered out %s' % org)
                         continue
+                    if re_dom is not None:
+                        dom_match = re_dom.match(cert['cn']) is not None
+                        for alt in cert['alts']:
+                            dom_match |= re_dom.match(alt) is not None
+                        if not dom_match:
+                            if args.verbose:
+                                print('Domain filtered out %s' % cert['cn'])
+                            continue
 
                     cert_db.append(cert)
                     masks_db.append(cert['pubkey']['mask'])
