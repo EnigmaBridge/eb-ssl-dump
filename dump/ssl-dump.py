@@ -149,8 +149,9 @@ if args.scrapy is not None:
                 js = json.loads(data)
                 for rec in js:
                     domains.add(rec['url'])
-            except:
+            except Exception as e:
                 # print data
+                print('Exception during processing the file %s. Exception: %s' % (scrap, e))
                 if args.debug:
                     traceback.print_exc()
                 raise
