@@ -49,6 +49,11 @@ import numpy as np
 import math
 from sklearn.decomposition import IncrementalPCA, PCA, SparsePCA, KernelPCA
 from matplotlib.backends.backend_pdf import PdfPages
+import logging, coloredlogs
+
+
+logger = logging.getLogger(__name__)
+coloredlogs.install(level=logging.DEBUG)
 
 
 def random_subset_idx(a, count):
