@@ -2,9 +2,13 @@ import json
 import os, sys
 import keys_basic
 from scipy import stats
+import logging
 
 
 __author__ = 'dusanklinec'
+
+
+logger = logging.getLogger(__name__)
 
 
 class KeyStats(object):
@@ -24,6 +28,9 @@ Group XI:	Bouncy Castle 1.54, Crypto++ 5.6.3, Microsoft .NET, Microsoft CNG, Mic
 Group XII:	Bouncy Castle 1.53, Cryptix JCE 20050328, FlexiProvider 1.7p7, mbedTLS 2.2.1, SunRsaSign (OpenJDK 1.8), sunrsasign openjdk 1.8.0, Utimaco Security Server Se50 LAN Appliance, utimaco security server se50
 Group XIII:	Botan 1.11.29, cryptlib 3.4.3, Feitian JavaCOS A22, Feitian JavaCOS A40, Gemalto GCX 72K, gemalto gcx4 72k, libgcrypt 1.6.5, GNU Libgcrypt 1.6.5, libgcrypt 1.6.5 fips, GNU Libgcrypt 1.6.5 FIPS, LibTomCrypt 1.17, Nettle 3.2, Oberthur Cosmo 64, OpenSSL FIPS 2.0.12, openssl 1.0.2g fips 2.0.12, PGPSDK 4, SafeNet Luna SA-1700 LAN, safenet luna sa-1700, WolfSSL 3.9.0
 '''
+
+    GROUPS_APRIORI = [0.0010527392, 0.0011659395, 0.0064397858, 0.0008279989, 0.0063894917, 0.6792247813, 0.0043773229,
+                      0.0004078581, 0.0018329494, 0.0029154545, 0.2192556569, 0.0356214325, 0.0404885893]
 
     def __init__(self):
         self.data = None
@@ -55,6 +62,12 @@ Group XIII:	Botan 1.11.29, cryptlib 3.4.3, Feitian JavaCOS A22, Feitian JavaCOS 
         # group name -> number of sources in the group mapping
         self.groups_sizes = {}
 
+        # group, mask -> probability
+        self.groups_masks_prob = {}
+
+        # group, mask -> normalized probability, normalizing across groups.
+        self.groups_table_prob = {}
+
         # List of source names
         self.sources = []
 
@@ -67,43 +80,62 @@ Group XIII:	Botan 1.11.29, cryptlib 3.4.3, Feitian JavaCOS A22, Feitian JavaCOS 
         # Probability distribution functions for sources
         self.sources_distrib = {}
 
+        # Probability distribution functions for groups
+        self.groups_distrib = {}
+
     def load_tables(self, fname=CLASSIFICATION_TABLE_PATH):
-        # Load source grouping
-        gcand = [x.strip() for x in self.GROUPS.split('\n') if len(x) > 0]
-        for line in gcand:
-            parts = [x.strip() for x in line.split(':', 1)]
-            grp = parts[0]
-            self.groups_idx[grp.lower()] = len(self.groups)
-            self.groups.append(grp)
-
-            sources = [x.strip() for x in parts[1].split(',')]
-            self.groups_sources_map[grp] = sources
-            for source in sources:
-                self.sources_groups_map[source.lower()] = grp
-            self.groups_sizes[grp.lower()] = len(sources)
-
-        # Mask precomputation, ordering, mask -> index
-        self.masks = []
-        for midx, mask in enumerate(keys_basic.generate_pubkey_mask()):
-            self.masks_idx[mask] = len(self.masks)
-            self.masks.append(mask)
+        logger.info('Computing statistical data')
 
         # Load distributions
         with open(fname, mode='r') as fh:
             data = fh.read()
             self.data = json.loads(data)
-            table = self.data['table']
+            file_table = self.data['table']
+            table = {}
 
+            # Transform to lower case
+            for source in file_table:
+                table[source.lower()] = file_table[source]
+            file_table = None  # Clear memory
+
+            # Load source grouping
+            gcand = [x.strip() for x in self.GROUPS.split('\n') if len(x) > 0]
+            for line in gcand:
+                parts = [x.strip() for x in line.split(':', 1)]
+                grp = parts[0].strip().lower()
+                self.groups_idx[grp] = len(self.groups)
+                self.groups.append(grp)
+
+                # Load sources defined for the group. Take only sources we have definitions for...
+                def_sources = [x.strip().lower() for x in parts[1].split(',')]
+                sources = [x for x in def_sources if x in table]
+                if len(sources) == 0:
+                    raise ValueError('Group %s has zero sources available' % grp)
+
+                # Group <-> sources mappings
+                self.groups_sources_map[grp] = sources
+                for source in sources:
+                    self.sources_groups_map[source.lower()] = grp
+                self.groups_sizes[grp.lower()] = len(sources)
+
+            # Mask precomputation, ordering, mask -> index
+            self.masks = []
+            for midx, mask in enumerate(keys_basic.generate_pubkey_mask()):
+                self.masks_idx[mask] = len(self.masks)
+                self.masks.append(mask)
+
+            # Per-source computations, probabilities, ...
             for source in table:
                 self.sources_masks[source] = {}
                 self.sources_masks_prob[source] = {}
+                self.table_prob[source] = {}
                 self.sources_idx[source] = len(self.sources)
                 self.sources.append(source)
 
                 count = 0
                 for mask in keys_basic.generate_pubkey_mask():
                     if mask not in table[source]:
-                        self.sources_masks[source][mask] = 0
+                        self.sources_masks[source][mask] = 0.0
                     else:
                         self.sources_masks[source][mask] = table[source][mask]
                         count += table[source][mask]
@@ -120,18 +152,45 @@ Group XIII:	Botan 1.11.29, cryptlib 3.4.3, Feitian JavaCOS A22, Feitian JavaCOS 
                     if p > 0:
                         xk.append(self.get_mask_idx(mask))
                         pk.append(p)
-                if sum(pk) > 1.1:
-                    raise ValueError('Fishy probability distribution %s' % sum(pk))
+
+                    # Table init
+                    self.table_prob[source][mask] = self.sources_masks_prob[source][mask]
+
+                if abs(1.0 - sum(pk)) > 1e-05:
+                    raise ValueError('Fishy probability distribution %s %s' % (source, sum(pk)))
                 self.sources_distrib[source] = stats.rv_discrete(name=source, values=(xk, pk))
 
             # Merge very similar sources to one category
-            # ...
+            # Compute group -> probability
+            for grp in self.groups:
+                xk, pk = [], []
+                self.groups_masks_prob[grp] = {}
+                self.groups_table_prob[grp] = {}
+                src_num = len(self.groups_sources_map[grp])
 
-            # Compute table
-            for source in self.sources_masks_prob:
-                self.table_prob[source] = {}
                 for mask in keys_basic.generate_pubkey_mask():
-                    self.table_prob[source][mask] = self.sources_masks_prob[source][mask]
+                    p = 0.0
+                    for src in self.groups_sources_map[grp]:
+                        p += self.sources_masks_prob[src][mask]
+                    p /= float(src_num)
+
+                    self.groups_masks_prob[grp][mask] = p
+
+                    # Table init
+                    self.groups_table_prob[grp][mask] = p
+
+                    # Distribution computation
+                    if p > 0:
+                        xk.append(self.get_mask_idx(mask))
+                        pk.append(p)
+                pass
+
+                # Check
+                if abs(1.0 - sum([self.groups_masks_prob[grp][x] for x in self.groups_masks_prob[grp]])) > 1e-05:
+                    raise ValueError('Fishy probability distribution %s %s' % (grp, sum(pk)))
+
+                # Compute group distributions
+                self.groups_distrib[grp] = stats.rv_discrete(name=grp, values=(xk, pk))
 
             # Normalize table to one - on the line
             mask_gen = keys_basic.generate_pubkey_mask()
@@ -144,6 +203,19 @@ Group XIII:	Botan 1.11.29, cryptlib 3.4.3, Feitian JavaCOS A22, Feitian JavaCOS 
                         self.table_prob[source][mask] = None
                     else:
                         self.table_prob[source][mask] *= (1.0/total)
+
+            # Normalize group table to one - on the line
+            for mask in keys_basic.generate_pubkey_mask():
+                total = 0.0
+                for grp in self.groups_masks_prob:
+                    total += self.groups_masks_prob[grp][mask]
+                for grp in self.groups_masks_prob:
+                    if total < 1e-250:
+                        self.groups_table_prob[grp][mask] = None
+                    else:
+                        self.groups_table_prob[grp][mask] *= (1.0/total)
+
+        logger.info('Statistical data computed')
         pass
 
     def src_to_group(self, src):
