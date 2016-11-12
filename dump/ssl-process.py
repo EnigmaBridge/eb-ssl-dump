@@ -173,6 +173,8 @@ def bar_chart(sources=None, values=None, res=None, error=None, xlabel=None, titl
 
 # Main - argument parsing + processing
 def main():
+    logger.debug('App started')
+
     parser = argparse.ArgumentParser(description='Key processing tool')
     parser.add_argument('-t', '--threads', dest='threads', type=int, default=None,
                         help='Number of threads to use for cert download')
@@ -218,6 +220,9 @@ def main():
 
     parser.add_argument('--pca-grp', dest='pca_grp', action='store_const', const=True,
                         help='Plot PCA on the input keys (groups)')
+
+    parser.add_argument('--distrib', dest='distrib', action='store_const', const=True,
+                        help='Plot distributions - to the PDF')
 
     parser.add_argument('--key-dist', dest='plot_key_dist', action='store_const', const=True,
                         help='Plots key mask distribution')
@@ -654,6 +659,30 @@ def main():
             # plt.savefig(ppdf, format='pdf')
             ppdf.close()
             pass
+
+    if args.distrib:
+        # Plotting distributions for groups, to the PDF
+        plt.rcdefaults()
+        ppdf = PdfPages('groups_distrib.pdf')
+
+        # Compute for each source
+        range_ = st.masks
+        range_idx = np.arange(len(st.masks))
+        for grp_idx, grp in enumerate(st.groups):
+            cur_data = st.groups_masks_prob[grp]
+            raw_data = [cur_data[x] for x in st.masks]
+            cur_plot = plt
+
+            logger.debug('Plotting distribution %02d/%02d : %s ' % (grp_idx+1, len(st.groups), grp))
+            axes = cur_plot.gca()
+            axes.set_xlim([0, len(st.masks)])
+            cur_plot.bar(range_idx, raw_data, linewidth=0, width=0.4)
+            cur_plot.title('%s' % grp)
+            cur_plot.savefig(ppdf, format='pdf')
+            cur_plot.clf()
+        logger.info('Finishing PDF')
+        ppdf.close()
+        pass
 
 
 
