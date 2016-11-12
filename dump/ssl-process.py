@@ -208,6 +208,9 @@ def main():
     parser.add_argument('--pca-src-k', dest='pca_src_k', type=int, default=3,
                         help='Size of the subset from the source distribution')
 
+    parser.add_argument('--pca-grp', dest='pca_grp', action='store_const', const=True,
+                        help='Plot PCA on the input keys (groups)')
+
     parser.add_argument('--key-dist', dest='plot_key_dist', action='store_const', const=True,
                         help='Plots key mask distribution')
 
@@ -408,22 +411,23 @@ def main():
             prob = st.table_prob[src][mask]
             keys_grp_vec[idx][st.get_group_idx(grp)] += prob
 
-    X = np.array(keys_grp_vec)
-    pca = PCA(n_components=2)
-    pca.fit(X)
-    X_transformed = pca.transform(X)
-    print('PCA mean: %s, components: ' % pca.mean_)
-    print(pca.components_)
+    if args.pca_grp:
+        X = np.array(keys_grp_vec)
+        pca = PCA(n_components=2)
+        pca.fit(X)
+        X_transformed = pca.transform(X)
+        print('PCA mean: %s, components: ' % pca.mean_)
+        print(pca.components_)
 
-    masks_src_np = np.array(masks_src)
-    plt.rcdefaults()
-    colors = matplotlib.cm.rainbow(np.linspace(0, 1, last_src_id))
-    for src_id in range(0, last_src_id):
-        plt.scatter(X_transformed[masks_src_np == src_id, 0],
-                    X_transformed[masks_src_np == src_id, 1],
-                    label=src_names[src_id], color=colors[src_id], alpha=0.25, marker=',')
-    plt.legend(loc="best", shadow=False, scatterpoints=1)
-    plt.show()
+        masks_src_np = np.array(masks_src)
+        plt.rcdefaults()
+        colors = matplotlib.cm.rainbow(np.linspace(0, 1, last_src_id))
+        for src_id in range(0, last_src_id):
+            plt.scatter(X_transformed[masks_src_np == src_id, 0],
+                        X_transformed[masks_src_np == src_id, 1],
+                        label=src_names[src_id], color=colors[src_id], alpha=0.25, marker=',')
+        plt.legend(loc="best", shadow=False, scatterpoints=1)
+        plt.show()
 
     # Random subset
     if args.subs:
