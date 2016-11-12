@@ -194,6 +194,9 @@ def main():
 
     parser.add_argument('--ossl', dest='ossl', type=int, default=None, help='OpenSSL generator')
 
+    parser.add_argument('--per-key-stat', dest='per_key_stat', action='store_const', const=True,
+                        help='Print prob matching for each key')
+
     parser.add_argument('--subs', dest='subs', action='store_const', const=True,
                         help='Plot random subgroups charts')
     parser.add_argument('--subs-k', dest='subs_k', type=int, default=5,
@@ -360,15 +363,16 @@ def main():
         return
 
     # Simple match
-    print('Per-key matching: ')
-    for idx,mask in enumerate(masks_db):
-        print('Key %02d, mask: %s' % (idx, mask))
+    if args.per_key_stat:
+        print('Per-key matching: ')
+        for idx, mask in enumerate(masks_db):
+            print('Key %02d, mask: %s' % (idx, mask))
 
-        res = []
-        for src in st.table_prob:
-            val = st.table_prob[src][mask]
-            res.append((src, val if val is not None else 0))
-        print_res(res, st)
+            res = []
+            for src in st.table_prob:
+                val = st.table_prob[src][mask]
+                res.append((src, val if val is not None else 0))
+            print_res(res, st)
 
     # Total key matching
     print('Fit for all keys in one distribution:')
