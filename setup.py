@@ -20,7 +20,9 @@ install_requires = [
     'coloredlogs',
     'pymix',
     'scipy',
-    'matplotlib'
+    'numpy',
+    'matplotlib',
+    'sklearn'
 ]
 
 # TLS SNI for older python
