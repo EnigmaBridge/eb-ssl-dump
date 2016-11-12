@@ -680,6 +680,32 @@ def main():
             cur_plot.title('%s' % grp)
             cur_plot.savefig(ppdf, format='pdf')
             cur_plot.clf()
+
+        # Print input data - per source
+        max_src = max(masks_src)
+        bars = []
+        for src_id in range(max_src+1):
+            axes = plt.gca()
+            axes.set_xlim([0, len(st.masks)])
+
+            map_data = {}
+            for mask in st.masks:
+                map_data[mask] = 0.0
+            for mask_idx, mask in enumerate(masks_db):
+                if masks_src[mask_idx] == src_id:
+                    map_data[mask] += 1
+
+            raw_data = []
+            for mask in st.masks:
+                raw_data.append(map_data[mask])
+
+            b1 = plt.bar(range_idx, raw_data, linewidth=0, width=0.4)
+            bars.append(b1)
+
+            plt.title('Source %d' % src_id)
+            plt.savefig(ppdf, format='pdf')
+            plt.clf()
+
         logger.info('Finishing PDF')
         ppdf.close()
         pass
