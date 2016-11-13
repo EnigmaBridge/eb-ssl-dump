@@ -49,6 +49,7 @@ import numpy as np
 import math
 from sklearn.decomposition import IncrementalPCA, PCA, SparsePCA, KernelPCA
 from matplotlib.backends.backend_pdf import PdfPages
+import mixture
 import logging, coloredlogs
 
 
@@ -220,6 +221,9 @@ def main():
 
     parser.add_argument('--pca-grp', dest='pca_grp', action='store_const', const=True,
                         help='Plot PCA on the input keys (groups)')
+
+    parser.add_argument('--mixture', dest='mixture', action='store_const', const=True,
+                        help='Mixture distribution on masks - sources')
 
     parser.add_argument('--distrib', dest='distrib', action='store_const', const=True,
                         help='Plot distributions - to the PDF')
@@ -709,6 +713,96 @@ def main():
         logger.info('Finishing PDF')
         ppdf.close()
         pass
+
+    if args.mixture:
+        # http://www.pymix.org/pymix/index.php?n=PyMix.Tutorial#bayesmix
+        # 1. Create mixture model = add discrete distributions to the package
+        dists = []
+        alphabet = mixture.Alphabet(st.masks)
+        taken_src = []
+
+        for src in st.sources:
+            if 'openssl 1.0.2g' == src or 'microsoft .net' == src:
+                pass
+            else:
+                continue
+            print(' - Source: %s' % src)
+
+            taken_src.append(src)
+            probs = []
+            for m in st.masks:
+                probs.append(st.sources_masks_prob[src][m])
+
+            d = mixture.DiscreteDistribution(len(alphabet), probs, alphabet=alphabet)
+            dists.append(d)
+
+        # 2. Create the model, for now, with even distribution among components.
+        comp_weights = [1.0/len(dists)] * len(dists)
+        mmodel = mixture.MixtureModel(len(dists), comp_weights, dists)
+        print '-'*80
+        print mmodel
+        print '-'*80
+
+        # dump mixtures to the file
+        mixture.writeMixture(mmodel, 'src.mix')
+
+        # 3. Input data - array of input masks
+        masks_data = [[x] for x in masks_db]
+        data = mixture.DataSet()
+        data.fromList(masks_data)
+        data.internalInit(mmodel)
+
+        print masks_data
+        print data
+        print '---------'
+
+        # 4. Compute EM
+        # if there is a distribution in the input data which has zero matching inputs,
+        # an exception will be thrown. Later - discard such source from the input...
+        print mmodel.modelInitialization(data, 1)
+        print('EM start: ')
+
+        ress = []
+        for r in range(10):
+            mmodel.modelInitialization(data, 1)
+            emres = mmodel.EM(data, 1000, 0.00000000000000001)
+            ress.append(emres)
+        emres = max(ress, key=lambda x: x[1])
+
+        # print mmodel.randMaxEM(data, 10, 40, 0.1)
+        print emres
+
+        # Plot
+        plt.rcdefaults()
+        # plt.plot(range(0, len(emres[0][3])), [2.71828**x for x in emres[0][3]], 'o')
+        # plt.plot(range(0, len(emres[0][3])), emres[0][3], 'k')
+        # plt.show()
+
+        for i in range(0,5):
+            print('-------')
+            for idx, src in enumerate(emres[0]):
+                print('- i:%02d src: %02d, val: %s' % (i, idx, src[i]))
+
+        colors = matplotlib.cm.rainbow(np.linspace(0, 1, len(taken_src)))
+        range_ = range(0, len(emres[0][0]))
+        bars = []
+        for idx, src in enumerate(emres[0]):
+            b1 = plt.bar(range_, [2.71828**x for x in src], color=colors[idx])
+            bars.append(b1)
+
+        plt.legend(tuple(bars), tuple(taken_src))
+        plt.grid(True)
+        plt.show()
+
+        # for src in emres[0]:
+        #     plt.plot(range(0, len(src)), [2.71828**x for x in src], 'o')
+        #     # plt.grid(True)
+        #     # plt.show()
+        #
+        # # plt.scatter(mask_map_last_x, mask_map_last_y, c='red', s=scale, alpha=0.3)
+        # # plt.legend()
+        # plt.grid(True)
+        # plt.show()
 
 
 
