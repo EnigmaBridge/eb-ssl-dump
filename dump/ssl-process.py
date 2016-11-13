@@ -241,6 +241,9 @@ def main():
     parser.add_argument('--distrib', dest='distrib', action='store_const', const=True,
                         help='Plot distributions - to the PDF')
 
+    parser.add_argument('--distrib-mix', dest='distribmix', action='store_const', const=True,
+                        help='Plot distributions groups mixed with sources')
+
     parser.add_argument('--key-dist', dest='plot_key_dist', action='store_const', const=True,
                         help='Plots key mask distribution')
 
@@ -722,6 +725,54 @@ def main():
             plt.title('Source %d' % src_id)
             plt.savefig(ppdf, format='pdf')
             plt.clf()
+
+        # Group distribution + source:
+        if args.distribmix:
+            width = 0.25
+            range_idx = np.arange(len(st.masks))
+
+            # One source to the graph
+            max_src = max(masks_src)
+            cur_plot = plt
+            for src_id in range(max_src+1):
+
+                bars = []
+                logger.debug('Plotting mix distribution src %d ' % src_id)
+
+                map_data = {}
+                for mask in st.masks:
+                    map_data[mask] = 0.0
+                for mask_idx, mask in enumerate(masks_db):
+                    if masks_src[mask_idx] == src_id:
+                        map_data[mask] += 1
+
+                raw_data = []
+                for mask in st.masks:
+                    raw_data.append(map_data[mask])
+                raw_data = np.array(raw_data)
+                raw_data /= float(sum(raw_data))
+
+                for grp_idx, grp in enumerate(st.groups):
+                    logger.debug(' - Plotting mix distribution %02d/%02d : %s ' % (grp_idx+1, len(st.groups), grp))
+
+                    # Source
+                    fig, ax = plt.subplots()
+                    b1 = ax.bar(range_idx + width, raw_data, linewidth=0, width=width, color='r')
+                    bars.append(b1)
+
+                    # Group
+                    cur_data2 = st.groups_masks_prob[grp]
+                    raw_data2 = [cur_data2[x] for x in st.masks]
+
+                    bar1 = ax.bar(range_idx, raw_data2, linewidth=0, width=width, color='b')
+                    bars.append(bar1)
+
+                    ax.legend(tuple([x[0] for x in bars]), tuple(['Src %d' % src_id, grp]))
+                    ax.set_xlim([0, len(st.masks)])
+
+                    cur_plot.title('%s + source %d' % (grp, src_id))
+                    cur_plot.savefig(ppdf, format='pdf')
+                    cur_plot.clf()
 
         logger.info('Finishing PDF')
         ppdf.close()
