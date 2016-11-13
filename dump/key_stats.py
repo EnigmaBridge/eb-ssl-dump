@@ -284,12 +284,14 @@ Group XIII:	Botan 1.11.29, cryptlib 3.4.3, Feitian JavaCOS A22, Feitian JavaCOS 
             if out_res[idx][1] is None:
                 out_res[idx] = (grp, data)
                 continue
-            out_res[idx] = (grp, merger(out_res[idx][1], data))
+            if data is not None:
+                out_res[idx] = (grp, merger(out_res[idx][1], data))
 
         if equalize:
             for grp in self.groups:
                 idx = self.get_group_idx(grp)
-                out_res[idx] = (grp, out_res[idx][1] / float(self.get_group_size(grp)))
+                if out_res[idx][1] is not None:
+                    out_res[idx] = (grp, out_res[idx][1] / float(self.get_group_size(grp)))
 
         return out_res
 

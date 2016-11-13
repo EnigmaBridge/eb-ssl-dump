@@ -74,18 +74,25 @@ def random_subset(a, count):
     return random_subset_idx(a, count)[0]
 
 
-def print_res(res, st, error=None):
+def print_res(res, st, error=None, loglikelihood=False):
     total = 0.0
     res = sorted(res, key=lambda x: x[1], reverse=True)
+    if loglikelihood:
+        print('Loglikelihood results: ')
     for tup in res:
-        total += tup[1]
-    for idx,tup in enumerate(res):
-        if tup[1] < 1e-200:
+        if tup[1] is not None:
+            total += tup[1]
+    for idx, tup in enumerate(res):
+        val = tup[1]
+        prop = 'N/A'
+        if val is None:
             continue
+        if not loglikelihood:
+            prop = '%2.4f %%' % (val*(100.0/total))
         if error is None:
-            print(' - %s [%2.4f %%] %s [%s]' % (tup[1], tup[1]*(100.0/total), tup[0], st.src_to_group(tup[0])))
+            print(' - %s [%s] %s [%s]' % (val, prop, tup[0], st.src_to_group(tup[0])))
         else:
-            print(' - %s [%2.4f %%] std: %s %s [%s]' % (tup[1], tup[1]*(100.0/total), error[idx], tup[0], st.src_to_group(tup[0])))
+            print(' - %s [%s] std: %s %s [%s]' % (val, prop, error[idx], tup[0], st.src_to_group(tup[0])))
 
 
 def key_val_to_list(src_dict):
@@ -109,7 +116,10 @@ def comp_total_match_dict(masks, st, loglikelihood=False):
         for idx, mask in enumerate(masks):
             val = val_if_none(st.table_prob[src][mask], 0)
             if loglikelihood:
-                src_total_match[src] += math.log(float(val))
+                if val == 0.0 or src_total_match[src] is None:
+                    src_total_match[src] = None
+                else:
+                    src_total_match[src] += math.log(val)
             else:
                 src_total_match[src] *= val
     return src_total_match
@@ -408,10 +418,11 @@ def main():
             print_res(res, st)
 
     # Total key matching
+    use_loglikelihood = True
     print('Fit for all keys in one distribution:')
-    total_weights = src_total_match = comp_total_match_dict(masks_db, st)
+    total_weights = src_total_match = comp_total_match_dict(masks_db, st, loglikelihood=use_loglikelihood)
     res = key_val_to_list(src_total_match)
-    print_res(res, st)
+    print_res(res, st, loglikelihood=use_loglikelihood)
     res = st.res_src_to_group(res)
     # bar_chart(res=res, title='Fit for all keys')
 
@@ -421,10 +432,16 @@ def main():
     for src in st.table_prob:
         src_total_match[src] = []
         for idx, mask in enumerate(masks_db):
-            # if all keys
             val = keys_basic.aggregate_mask(st.sources_masks_prob[src], mask)
-            #val = val_if_none(st.table_prob[src][mask], 0)
-            src_total_match[src].append(val * total_weights[src])
+            if use_loglikelihood:
+                if total_weights[src] is not None:
+                    src_total_match[src].append(val + total_weights[src])
+                else:
+                    src_total_match[src].append(-9999.9)
+            else:
+                src_total_match[src].append(val * total_weights[src])
+            pass
+        pass
     res=[]
     devs=[]
     for src in st.sources:
@@ -434,7 +451,7 @@ def main():
         devs.append(s)
 
     # Total output
-    print_res(res, st, error=devs)
+    print_res(res, st, error=devs, loglikelihood=use_loglikelihood)
     # bar_chart(res=res, error=devs, title='Avg for all keys + error')
 
     # PCA on the keys - groups
