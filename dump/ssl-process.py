@@ -172,6 +172,19 @@ def bar_chart(sources=None, values=None, res=None, error=None, xlabel=None, titl
     plt.show()
 
 
+def get_group_desc(grp, st):
+    desc = []
+    sources = st.groups_sources_map[grp]
+    max_rng = min(4, len(sources))
+    for idx in range(max_rng):
+        src = sources[idx]
+        if len(src) <= 12:
+            desc.append(src)
+            continue
+        desc.append(src[0:8] + '..' + src[-4:])
+    return ', '.join(desc)
+
+
 # Main - argument parsing + processing
 def main():
     logger.debug('App started')
@@ -681,7 +694,7 @@ def main():
             axes = cur_plot.gca()
             axes.set_xlim([0, len(st.masks)])
             cur_plot.bar(range_idx, raw_data, linewidth=0, width=0.4)
-            cur_plot.title('%s' % grp)
+            cur_plot.title('%s (%s)' % (grp, get_group_desc(grp, st)))
             cur_plot.savefig(ppdf, format='pdf')
             cur_plot.clf()
 
