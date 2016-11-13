@@ -101,24 +101,27 @@ def val_if_none(val, default):
     return val if val is not None else default
 
 
-def comp_total_match_dict(masks, st):
+def comp_total_match_dict(masks, st, loglikelihood=False):
     src_total_match = {}
     for src in st.table_prob:
-        src_total_match[src] = 1
+        src_total_match[src] = 1.0 if not loglikelihood else 0.0
 
         for idx, mask in enumerate(masks):
             val = val_if_none(st.table_prob[src][mask], 0)
-            src_total_match[src] *= val
+            if loglikelihood:
+                src_total_match[src] += math.log(float(val))
+            else:
+                src_total_match[src] *= val
     return src_total_match
 
 
-def comp_total_match(masks, st):
-    src_total_match = comp_total_match_dict(masks, st)
+def comp_total_match(masks, st, loglikelihood=False):
+    src_total_match = comp_total_match_dict(masks, st, loglikelihood=loglikelihood)
     return key_val_to_list(src_total_match)
 
 
-def total_match(certs, st):
-    print_res(comp_total_match(certs, st), st)
+def total_match(certs, st, loglikelihood=False):
+    print_res(comp_total_match(certs, st, loglikelihood=loglikelihood), st)
 
 
 def plot_key_mask_dist(masks_db, st):
