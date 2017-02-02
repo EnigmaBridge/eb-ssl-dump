@@ -19,6 +19,7 @@ def print_mod_hex(x509, print_e=False):
         return
     pub = x509.public_key()
     if not isinstance(pub, RSAPublicKey):
+        sys.stderr.write('non-RSA public key\n')
         return
 
     pubnum = x509.public_key().public_numbers()
