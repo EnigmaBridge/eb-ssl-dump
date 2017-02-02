@@ -4,6 +4,7 @@
 import argparse
 import re
 import sys
+import traceback
 from cryptography.hazmat.backends import default_backend
 from cryptography.x509.base import load_pem_x509_certificate, load_der_x509_certificate
 from cryptography.hazmat.primitives.asymmetric.rsa import RSAPublicKey
@@ -58,6 +59,7 @@ for file_name in args.files:
                     x509 = load_pem_x509_certificate(key, get_backend())
                     print_mod_hex(x509, print_e=args.exponent)
                 except Exception as e:
+                    traceback.print_exc()
                     sys.stderr.write('Exception in parsing key: %s\n' % e)
 
         if not is_pem or args.der:
@@ -65,6 +67,7 @@ for file_name in args.files:
                 x509 = load_der_x509_certificate(crt, get_backend())
                 print_mod_hex(x509, print_e=args.exponent)
             except Exception as e:
+                traceback.print_exc()
                 sys.stderr.write('Exception in parsing key: %s\n' % e)
 
 
