@@ -42,7 +42,7 @@ parser.add_argument('--exp', dest='exponent', default=False, action='store_const
 args = parser.parse_args()
 
 for file_name in args.files:
-    with open(file_name, 'r') as hnd:
+    with open(file_name, 'rb') as hnd:
         crt = hnd.read()
         is_pem = file_name.endswith('.pem') or crt.startswith('-----BEGIN')
 
