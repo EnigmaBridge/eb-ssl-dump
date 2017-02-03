@@ -32,7 +32,7 @@ def print_mod_hex(x509, print_e=False):
 # Parse command line arguments
 parser = argparse.ArgumentParser(description='Extracts RSA modulus as a hexa string from PEM/DER encoded X509 certificates')
 parser.add_argument('files', nargs=argparse.ZERO_OR_MORE, default=[],
-                    help='PEM/DER encoded RSA keys to process')
+                    help='PEM/DER encoded X509 certificate files to process')
 parser.add_argument('--pem', dest='pem', default=False, action='store_const', const=True,
                     help='Force PEM format')
 parser.add_argument('--der', dest='der', default=False, action='store_const', const=True,
