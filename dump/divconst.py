@@ -79,6 +79,37 @@ def build_samples(R, maxbit):
     return samples
 
 
+def to_hex(num):
+    """
+    Number to hex string, byte aligned from left
+    :param num:
+    :return:
+    """
+    a_hex = '%x' % num
+    if len(a_hex) & 1 == 1:
+        a_hex = '0'+a_hex
+    return a_hex
+
+
+def to_bytearray(num):
+    """
+    Converts long number to byte array
+    :param num:
+    :return:
+    """
+    num_hex = to_hex(num)
+
+    # Byte array
+    ln = len(num_hex)
+    a_byte = []
+    for i in range(0, ln, 2):
+        cur = num_hex[i:i+2]
+        a_byte.append(cur)
+
+    a_byte = ', '.join(['(byte)0x'+x for x in a_byte])
+    return 'new byte[] {%s};' % a_byte
+
+
 #
 # Argument parsing
 #
@@ -90,6 +121,8 @@ parser.add_argument('--dps', dest='dps', default=100, type=int,
                     help='Decimal places precision in floating point arithmetics')
 parser.add_argument('--top', dest='top', default=1024, type=int,
                     help='Top exponent to try')
+parser.add_argument('--start', dest='start', default=5, type=int,
+                    help='Start exponent to try')
 parser.add_argument('--align', dest='align', default=False, action='store_const', const=True,
                     help='Align shift to 8bits')
 parser.add_argument('--floor', dest='floor', default=False, action='store_const', const=True,
@@ -108,9 +141,12 @@ R = mpmath.mpmathify(R_long)
 
 # Testing samples - for trial division test of the approximation vs. constant
 samples = build_samples(R_long, args.maxbit)
-logger.info('R: %s = %s, max bit register: %d = %s B' % (R_long, hex(R_long), args.maxbit, args.maxbit / 8.0))
+logger.info('R:        %s, max bit register: %d = %s B' % (to_hex(R_long), args.maxbit, args.maxbit / 8.0))
+logger.info('R byte:   %s' % to_bytearray(R_long))
+logger.info('R^2:      %s' % to_hex(R_long ** 2))
+logger.info('R^2 byte: %s' % to_bytearray(R_long ** 2))
 
-for dps in range(5, args.dps, args.step):
+for dps in range(args.start, args.dps, args.step):
     mp.dps = dps
     Rlog = math.log(R, 2)
     Rlog_exact2 = mpmath.log(R, 2)
@@ -173,24 +209,11 @@ for dps in range(5, args.dps, args.step):
 
     # Representation
     a_bits = mpmath.ceil(mpmath.log(best_a, 2))
-    a_hex = hex(best_a)[2:]
-    k_hex = hex(best_i)[2:]
-    if a_hex.endswith('L'):
-        a_hex = a_hex[:-1]
-    if k_hex.endswith('L'):
-        k_hex = k_hex[:-1]
-
-    if len(a_hex) & 1 == 1:
-        a_hex = '0'+a_hex
-
-    # Byte array
-    ln = len(a_hex)
-    a_byte = []
-    for i in range(0, ln, 2):
-        cur = a_hex[i:i+2]
-        a_byte.append(cur)
-
-    a_byte = ', '.join(['(byte)0x'+x for x in a_byte])
+    a_hex = to_hex(best_a)
+    k_hex = to_hex(best_i)
+    a_byte = to_bytearray(best_a)
+    aa_hex = to_hex(best_a ** 2)
+    aa_byte = to_bytearray(best_a ** 2)
 
     succ, mibf, mabf = rand_test(samples=samples, a=best_a, k=best_i, r=R)
 
@@ -200,12 +223,14 @@ for dps in range(5, args.dps, args.step):
           '\tbitsize a:     %s, = %s B \n'
           '\tbest denom:    2^%s, hex=0x%s, /8 = %s\n'
           '\ta hex:         0x%s, \n'
-          '\ta byte:        byte[] a = new byte[] {%s}; \n'
+          '\ta byte:        byte[] a = %s \n'
+          '\ta^2 hex:       0x%s, \n'
+          '\ta^2 byte:      byte[] a = %s \n'
           '\tapprox - R:    %s\n'
           '\tR-approx-test: %s, %s, %s, %s, %s, %s\n'
           '\tsucc tests:    %s / %s, min bits fail: %s, max bits fail: %s\n'
           % (min_dif, best_a, a_bits, math.ceil(a_bits/8.0),
-             best_i, k_hex, best_i/8.0, a_hex, a_byte, R_prec,
+             best_i, k_hex, best_i/8.0, a_hex, a_byte, aa_hex, aa_byte, R_prec,
              R_self, R_self2, R_self3, R_self4, R_self12345, R_self65537,
              succ, len(samples), mibf, mabf))
 
